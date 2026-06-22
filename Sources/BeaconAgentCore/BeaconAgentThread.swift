@@ -1,5 +1,6 @@
 import Foundation
 
+/// Generic conversation container owned by the host app's persistence layer.
 public struct BeaconAgentThread: Codable, Equatable, Identifiable, Sendable {
     public let id: String
     public let title: String

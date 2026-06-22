@@ -1,5 +1,6 @@
 import Foundation
 
+/// A transport-agnostic event envelope for agent runs, messages, tools, cards, and vendor extensions.
 public enum BeaconAgentEvent: Codable, Equatable, Identifiable, Sendable {
     case runStarted(BeaconRunStartedEvent)
     case runFinished(BeaconRunFinishedEvent)

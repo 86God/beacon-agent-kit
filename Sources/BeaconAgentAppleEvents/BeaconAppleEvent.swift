@@ -1,6 +1,7 @@
 import Foundation
 import BeaconAgentCore
 
+/// Model-only Apple platform event envelope for future adapters and policy evaluation.
 public enum BeaconAppleEvent: Codable, Equatable, Identifiable, Sendable {
     case appLifecycle(BeaconAppLifecycleEvent)
     case notification(BeaconNotificationEvent)

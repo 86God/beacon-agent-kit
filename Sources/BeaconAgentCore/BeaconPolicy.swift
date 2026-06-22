@@ -1,5 +1,6 @@
 import Foundation
 
+/// Sensitivity classification used by events, cards, and host-app policies.
 public enum BeaconPrivacyLevel: String, Codable, Equatable, Sendable {
     case publicInfo
     case appState
@@ -14,6 +15,7 @@ public enum BeaconPrivacyLevel: String, Codable, Equatable, Sendable {
     case secret
 }
 
+/// Declarative policy primitives for deciding where data may flow or be surfaced.
 public struct BeaconPolicy: Codable, Equatable, Sendable {
     public var privacyLevel: BeaconPrivacyLevel
     public var requiresUserConsent: Bool

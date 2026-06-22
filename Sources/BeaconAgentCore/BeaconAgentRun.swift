@@ -1,5 +1,6 @@
 import Foundation
 
+/// Minimal state for one agent execution attempt inside a thread.
 public struct BeaconAgentRun: Codable, Equatable, Identifiable, Sendable {
     public enum Status: String, Codable, Sendable {
         case queued

@@ -34,4 +34,17 @@ final class BeaconAppleEventTests: XCTestCase {
 
         XCTAssertEqual(event.privacyLevel, .locationApproximate)
     }
+
+    func testMotionEventRoundTripsAsModelOnlyEvent() throws {
+        let event = BeaconAppleEvent.motion(
+            BeaconMotionEvent(id: "motion-1", kind: .walking)
+        )
+
+        let data = try JSONEncoder().encode(event)
+        let decoded = try JSONDecoder().decode(BeaconAppleEvent.self, from: data)
+
+        XCTAssertEqual(decoded, event)
+        XCTAssertEqual(decoded.type, "motion.walking")
+        XCTAssertEqual(decoded.privacyLevel, .appState)
+    }
 }

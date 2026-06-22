@@ -1,6 +1,6 @@
 # Apple Events Roadmap
 
-Milestone 0 includes pure Codable event models only. Concrete adapters come later.
+v0.1 includes pure Codable event models only. Concrete adapters come later and will remain optional.
 
 ## Current Models
 
@@ -20,3 +20,11 @@ Milestone 0 includes pure Codable event models only. Concrete adapters come late
 ## Rule
 
 Apple framework adapters must remain optional. Apps should be able to use `BeaconAgentCore` on its own without linking HealthKit, ActivityKit, CoreLocation, or WatchConnectivity.
+
+## Policy Direction
+
+Future adapters should emit model objects that can be evaluated by `BeaconPolicy` before data leaves the device or triggers a native surface. For example, approximate location and notification summaries can be modeled generically, while precise location, health samples, and raw notification content should require explicit host-app policy and consent checks.
+
+## What v0.1 Does Not Do
+
+The package does not request permissions, subscribe to system callbacks, schedule notifications, start Live Activities, write HealthKit samples, or communicate with a watch. It only defines the portable event shapes those adapters can use later.

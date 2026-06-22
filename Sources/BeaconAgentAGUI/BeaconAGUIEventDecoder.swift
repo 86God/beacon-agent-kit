@@ -1,6 +1,7 @@
 import Foundation
 import BeaconAgentCore
 
+/// Decoder for newline-delimited AG-UI-like JSON event streams.
 public enum BeaconAGUIEventDecoder {
     public static func decodeLines(_ data: Data, decoder: JSONDecoder = JSONDecoder()) throws -> [BeaconAgentEvent] {
         guard let text = String(data: data, encoding: .utf8) else { return [] }

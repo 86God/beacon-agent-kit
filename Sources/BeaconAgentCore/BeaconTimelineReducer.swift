@@ -1,5 +1,6 @@
 import Foundation
 
+/// Pure reducer that projects Beacon agent events into display-ready timeline state.
 public enum BeaconTimelineReducer {
     public static func reduce(state: BeaconTimelineState, event: BeaconAgentEvent) -> BeaconTimelineState {
         var next = state

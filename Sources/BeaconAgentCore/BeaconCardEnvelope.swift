@@ -1,5 +1,6 @@
 import Foundation
 
+/// Describes where a card came from without coupling it to app-specific models.
 public struct BeaconCardSource: Codable, Equatable, Sendable {
     public enum SourceType: String, Codable, Sendable {
         case local
@@ -20,6 +21,7 @@ public struct BeaconCardSource: Codable, Equatable, Sendable {
     }
 }
 
+/// Declares privacy handling expectations for a card payload.
 public struct BeaconCardPrivacy: Codable, Equatable, Sendable {
     public let requiresUserReview: Bool
     public let containsRawMedia: Bool
@@ -46,6 +48,7 @@ public struct BeaconCardPrivacy: Codable, Equatable, Sendable {
     )
 }
 
+/// Presentation hint for generic card emphasis.
 public enum BeaconCardAccent: String, Codable, Sendable {
     case system
     case success
@@ -53,6 +56,7 @@ public enum BeaconCardAccent: String, Codable, Sendable {
     case destructive
 }
 
+/// Generic lifecycle state for a card.
 public enum BeaconCardStatus: String, Codable, Sendable {
     case draft
     case needsReview
@@ -61,6 +65,7 @@ public enum BeaconCardStatus: String, Codable, Sendable {
     case cancelled
 }
 
+/// A host-app-owned action that can be rendered with a generic role.
 public struct BeaconCardAction: Codable, Equatable, Identifiable, Sendable {
     public enum Role: String, Codable, Sendable {
         case primary
@@ -79,6 +84,7 @@ public struct BeaconCardAction: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+/// Generic display payload for cards, including stable JSON for app-defined schemas.
 public enum BeaconCardPayload: Codable, Equatable, Sendable {
     case text(String)
     case toolStatus(BeaconToolRun)
@@ -130,6 +136,7 @@ public enum BeaconCardPayload: Codable, Equatable, Sendable {
     }
 }
 
+/// A portable card envelope that keeps source, privacy, accent, payload, and actions together.
 public struct BeaconCardEnvelope: Codable, Equatable, Identifiable, Sendable {
     public let schemaVersion: Int
     public let id: String

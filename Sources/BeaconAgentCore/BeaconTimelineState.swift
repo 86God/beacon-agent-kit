@@ -1,11 +1,13 @@
 import Foundation
 
+/// Role used by generic timeline messages.
 public enum BeaconMessageRole: String, Codable, Equatable, Sendable {
     case user
     case assistant
     case system
 }
 
+/// A redacted message ready to render in a timeline.
 public struct BeaconTimelineMessage: Codable, Equatable, Identifiable, Sendable {
     public let id: String
     public let role: BeaconMessageRole
@@ -18,6 +20,7 @@ public struct BeaconTimelineMessage: Codable, Equatable, Identifiable, Sendable 
     }
 }
 
+/// Reducer-owned timeline projection of messages, tool runs, cards, and active deltas.
 public struct BeaconTimelineState: Codable, Equatable, Sendable {
     public var messages: [BeaconTimelineMessage]
     public var toolRuns: [BeaconToolRun]

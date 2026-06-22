@@ -57,6 +57,36 @@ final class BeaconTimelineReducerTests: XCTestCase {
         XCTAssertEqual(state.toolRuns[0].outputSummary, "Found result")
     }
 
+    func testToolFailedPreservesFailedStatusAndErrorSummary() {
+        var state = BeaconTimelineState()
+
+        state = BeaconTimelineReducer.reduce(
+            state: state,
+            event: .toolStarted(
+                BeaconToolStartedEvent(
+                    toolRunId: "tool-1",
+                    toolName: "lookup",
+                    title: "Lookup",
+                    inputSummary: "Searching"
+                )
+            )
+        )
+        state = BeaconTimelineReducer.reduce(
+            state: state,
+            event: .toolFailed(
+                BeaconToolFailedEvent(
+                    toolRunId: "tool-1",
+                    errorSummary: "Gateway failed sk-1234567890abcdef1234567890"
+                )
+            )
+        )
+
+        XCTAssertEqual(state.toolRuns.count, 1)
+        XCTAssertEqual(state.toolRuns[0].status, .failed)
+        XCTAssertEqual(state.toolRuns[0].errorSummary, "Gateway failed [secret redacted]")
+        XCTAssertEqual(state.toolRuns[0].summary, "Gateway failed [secret redacted]")
+    }
+
     func testCardUpdatedReplacesCardWithSameId() {
         var state = BeaconTimelineState()
         let draft = BeaconCardEnvelope(

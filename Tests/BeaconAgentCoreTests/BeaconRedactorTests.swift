@@ -3,12 +3,13 @@ import XCTest
 
 final class BeaconRedactorTests: XCTestCase {
     func testRedactsRawImageDataAndPhoneNumber() {
-        let text = "phone 13800138000 image data:image/png;base64,abcdefghijk123456789"
+        let text = "phone 13800138000 image data:image/png;base64,abcdefghijk123456789 imageDataBase64=zyxwvutsrqponm123456"
 
         let redacted = BeaconRedactor.displayText(text)
 
         XCTAssertFalse(redacted.contains("13800138000"))
         XCTAssertFalse(redacted.contains("abcdefghijk"))
+        XCTAssertFalse(redacted.contains("zyxwvuts"))
         XCTAssertTrue(redacted.contains("[phone redacted]"))
         XCTAssertTrue(redacted.contains("[image data redacted]"))
     }

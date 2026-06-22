@@ -1,5 +1,6 @@
 import Foundation
 
+/// Display-safe state for a tool invocation shown in a timeline or review surface.
 public struct BeaconToolRun: Codable, Equatable, Identifiable, Sendable {
     public enum Status: String, Codable, Sendable {
         case queued

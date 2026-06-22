@@ -1,6 +1,7 @@
 import SwiftUI
 import BeaconAgentCore
 
+/// Generic SwiftUI row for a redacted `BeaconToolRun`.
 public struct BeaconToolRunView: View {
     public let toolRun: BeaconToolRun
 

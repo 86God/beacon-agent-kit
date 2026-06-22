@@ -24,4 +24,28 @@ final class BeaconCardEnvelopeTests: XCTestCase {
         XCTAssertEqual(decoded.confidence, 100)
         XCTAssertEqual(decoded.payload, .json(type: "reference.result", value: .object(["count": .number(1)])))
     }
+
+    func testJSONPayloadRoundTripsNestedBeaconJSONValue() throws {
+        let payload = BeaconCardPayload.json(
+            type: "reference.result",
+            value: .object([
+                "matches": .array([
+                    .object([
+                        "title": .string("Local item"),
+                        "score": .number(0.98),
+                        "verified": .bool(true)
+                    ])
+                ]),
+                "source": .object([
+                    "kind": .string("local"),
+                    "raw": .null
+                ])
+            ])
+        )
+
+        let data = try JSONEncoder().encode(payload)
+        let decoded = try JSONDecoder().decode(BeaconCardPayload.self, from: data)
+
+        XCTAssertEqual(decoded, payload)
+    }
 }

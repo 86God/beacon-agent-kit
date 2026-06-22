@@ -1,6 +1,7 @@
 import SwiftUI
 import BeaconAgentCore
 
+/// Generic SwiftUI stack for `BeaconCardEnvelope` values.
 public struct BeaconCardStackView: View {
     public let cards: [BeaconCardEnvelope]
 

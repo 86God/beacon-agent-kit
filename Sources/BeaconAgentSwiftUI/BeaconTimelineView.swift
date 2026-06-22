@@ -1,6 +1,7 @@
 import SwiftUI
 import BeaconAgentCore
 
+/// Generic SwiftUI renderer for a `BeaconTimelineState`.
 public struct BeaconTimelineView: View {
     public let state: BeaconTimelineState
 

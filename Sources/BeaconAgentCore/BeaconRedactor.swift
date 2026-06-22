@@ -1,5 +1,6 @@
 import Foundation
 
+/// Small display redactor for summaries that must never expose raw media, phone numbers, or secrets.
 public enum BeaconRedactor {
     public static func optionalDisplayText(_ value: String?) -> String? {
         let redacted = displayText(value ?? "")
@@ -20,6 +21,11 @@ public enum BeaconRedactor {
             .replacingOccurrences(
                 of: #"base64,[A-Za-z0-9+/=]{8,}"#,
                 with: "base64,[image data redacted]",
+                options: .regularExpression
+            )
+            .replacingOccurrences(
+                of: #"imageDataBase64\s*=\s*[A-Za-z0-9+/=]{8,}"#,
+                with: "imageDataBase64=[image data redacted]",
                 options: .regularExpression
             )
             .replacingOccurrences(

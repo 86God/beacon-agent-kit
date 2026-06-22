@@ -1,5 +1,6 @@
 import Foundation
 
+/// Shared contract for typed Beacon events that can travel over JSON transports.
 public protocol BeaconTypedEvent: Codable, Equatable, Identifiable, Sendable {
     static var eventType: String { get }
     var id: String { get }
@@ -7,6 +8,7 @@ public protocol BeaconTypedEvent: Codable, Equatable, Identifiable, Sendable {
     var schemaVersion: Int { get }
 }
 
+/// Marks the beginning of an agent run inside a thread.
 public struct BeaconRunStartedEvent: BeaconTypedEvent {
     public static let eventType = "run.started"
     public let id: String
@@ -26,6 +28,7 @@ public struct BeaconRunStartedEvent: BeaconTypedEvent {
     }
 }
 
+/// Marks successful completion of an agent run.
 public struct BeaconRunFinishedEvent: BeaconTypedEvent {
     public static let eventType = "run.finished"
     public let id: String
@@ -45,6 +48,7 @@ public struct BeaconRunFinishedEvent: BeaconTypedEvent {
     }
 }
 
+/// Reports a run-level failure using a redacted, user-displayable summary.
 public struct BeaconRunErrorEvent: BeaconTypedEvent {
     public static let eventType = "run.error"
     public let id: String
@@ -64,6 +68,7 @@ public struct BeaconRunErrorEvent: BeaconTypedEvent {
     }
 }
 
+/// Opens a message buffer for incremental assistant or user text.
 public struct BeaconMessageStartedEvent: BeaconTypedEvent {
     public static let eventType = "message.started"
     public let id: String
@@ -81,6 +86,7 @@ public struct BeaconMessageStartedEvent: BeaconTypedEvent {
     }
 }
 
+/// Carries one redacted text chunk for an in-progress message.
 public struct BeaconMessageDeltaEvent: BeaconTypedEvent {
     public static let eventType = "message.delta"
     public let id: String
@@ -100,6 +106,7 @@ public struct BeaconMessageDeltaEvent: BeaconTypedEvent {
     }
 }
 
+/// Closes a message buffer and optionally replaces accumulated deltas with final text.
 public struct BeaconMessageFinishedEvent: BeaconTypedEvent {
     public static let eventType = "message.finished"
     public let id: String
@@ -119,6 +126,7 @@ public struct BeaconMessageFinishedEvent: BeaconTypedEvent {
     }
 }
 
+/// Starts or replaces a tool run entry without exposing raw arguments.
 public struct BeaconToolStartedEvent: BeaconTypedEvent {
     public static let eventType = "tool.started"
     public let id: String
@@ -142,6 +150,7 @@ public struct BeaconToolStartedEvent: BeaconTypedEvent {
     }
 }
 
+/// Carries a redacted summary of incremental tool arguments.
 public struct BeaconToolArgsDeltaEvent: BeaconTypedEvent {
     public static let eventType = "tool.args.delta"
     public let id: String
@@ -159,6 +168,7 @@ public struct BeaconToolArgsDeltaEvent: BeaconTypedEvent {
     }
 }
 
+/// Marks a tool run as finished and attaches a redacted output summary.
 public struct BeaconToolFinishedEvent: BeaconTypedEvent {
     public static let eventType = "tool.finished"
     public let id: String
@@ -180,6 +190,7 @@ public struct BeaconToolFinishedEvent: BeaconTypedEvent {
     }
 }
 
+/// Marks a tool run as failed and preserves a redacted error summary.
 public struct BeaconToolFailedEvent: BeaconTypedEvent {
     public static let eventType = "tool.failed"
     public let id: String
@@ -219,6 +230,7 @@ public struct BeaconToolFailedEvent: BeaconTypedEvent {
     }
 }
 
+/// Publishes a generic card envelope for native review or display.
 public struct BeaconCardCreatedEvent: BeaconTypedEvent {
     public static let eventType = "card.created"
     public let id: String
@@ -234,6 +246,7 @@ public struct BeaconCardCreatedEvent: BeaconTypedEvent {
     }
 }
 
+/// Updates a previously created card using the same card identifier.
 public struct BeaconCardUpdatedEvent: BeaconTypedEvent {
     public static let eventType = "card.updated"
     public let id: String
@@ -249,6 +262,7 @@ public struct BeaconCardUpdatedEvent: BeaconTypedEvent {
     }
 }
 
+/// Preserves unknown or app-specific events without forcing BeaconAgentKit to own their schema.
 public struct BeaconCustomEvent: BeaconTypedEvent {
     public static let eventType = "custom"
     public let id: String
