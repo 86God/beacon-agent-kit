@@ -29,7 +29,8 @@ Updated: 2026-08-08
 - Task 10 implementation: Foundation A2UI models/validator/store, atomic revisions and snapshot recovery, trusted-identity rejection, safe action catalog, and generic SwiftUI renderers with disabled unknown fallback. Full Swift suite passes 18 XCTest tests plus 17 Swift Testing tests.
 - Task 11 implementation: progressive Markdown commits stable blocks during streaming, keeps only an incomplete tail provisional, renders code/tables/dividers, and shows redacted in-place activity rows. Full Swift suite passes 18 XCTest tests plus 23 Swift Testing tests; the package builds for iPhone 17 on iOS Simulator 26.5.
 - Task 12 implementation: MCP tools map through host-owned policy profiles into capability manifests; structured results are schema-checked and redacted; embedded A2UI is catalog-validated; MCP Apps metadata requires negotiation; invalid/oversized resources and generic shell, SQL, or filesystem primitives fail closed. Python suite passes 61 tests and Swift passes 18 XCTest tests plus 28 Swift Testing tests; the iOS Simulator package build passes.
+- Task 13 JianHao integration: four local-first training capability manifests declare strict schemas, dependencies, device execution, draft/write risks, confirmation, idempotency, and the versioned training draft surface. Three focused iOS Simulator tests pass; legacy ToolContract loading remains available for parity.
 
 ## Current
 
-- Task 13: Register the JianHao training capability pack.
+- Task 14: Replace duplicate generic Swift code with package adapters.

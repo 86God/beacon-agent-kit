@@ -330,7 +330,7 @@ Trusted identity and scope come only from BeaconTrustedHostContext.
 - Create: ios/JianHaoPoC/JianHaoPoCTests/JianHaoCapabilityManifestTests.swift
 - Modify: ios/JianHaoPoC/JianHaoPoC.xcodeproj/project.pbxproj
 
-- [ ] **Step 1: Test unique IDs, dependencies, and these policies:**
+- [x] **Step 1: Test unique IDs, dependencies, and these policies:**
 
 ~~~text
 context/search: read_only, device
@@ -338,9 +338,9 @@ draft: reversible_draft, device
 commit: consequential_write, before_commit, idempotency required, device
 ~~~
 
-- [ ] **Step 2: Add resources and keep the old ToolContract loader until parity tests pass.**
-- [ ] **Step 3: Run the focused manifest XCTest.**
-- [ ] **Step 4: Commit with feat(ai): register JianHao training capabilities.**
+- [x] **Step 2: Add resources and keep the old ToolContract loader until parity tests pass.**
+- [x] **Step 3: Run the focused manifest XCTest.**
+- [x] **Step 4: Commit with feat(ai): register JianHao training capabilities.**
 
 ### Task 14: Replace duplicate generic Swift code with package adapters
 
