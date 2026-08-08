@@ -191,11 +191,11 @@ Unknown IDs return 404, invalid manifests return 422, state changes increment re
 - Create: python/beacon_agent_runtime/providers.py
 - Create: python/tests/test_routing.py
 
-- [ ] **Step 1: Write cases proving explicit dates, active approvals, disabled capabilities, low-confidence consequential ambiguity, and read-only lookup behavior.**
-- [ ] **Step 2: Define CapabilityRetriever and CapabilityReranker protocols.** The reranker may choose only from the supplied candidate IDs.
-- [ ] **Step 3: Implement precedence: pending workflow, explicit structured context, host-resolved date, attachment class, manifest retrieval, constrained reranking.** Keyword routing is only an offline fallback driven by manifest tags.
-- [ ] **Step 4: Run rtk python3 -m pytest python/tests/test_routing.py -q.**
-- [ ] **Step 5: Commit with feat(router): add staged capability routing.**
+- [x] **Step 1: Write cases proving explicit dates, active approvals, disabled capabilities, low-confidence consequential ambiguity, and read-only lookup behavior.**
+- [x] **Step 2: Define CapabilityRetriever and CapabilityReranker protocols.** The reranker may choose only from the supplied candidate IDs.
+- [x] **Step 3: Implement precedence: pending workflow, explicit structured context, host-resolved date, attachment class, manifest retrieval, constrained reranking.** Keyword routing is only an offline fallback driven by manifest tags.
+- [x] **Step 4: Run rtk python3 -m pytest python/tests/test_routing.py -q.**
+- [x] **Step 5: Commit with feat(router): add staged capability routing.**
 
 ### Task 7: Implement the bounded iterative runtime
 
