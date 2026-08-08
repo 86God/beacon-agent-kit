@@ -54,6 +54,48 @@ public struct BeaconCapabilityManifest: Codable, Equatable, Sendable {
         case confirmation, idempotency, dependencies, surface, tags, fallback, offlineSafe
     }
 
+    public init(
+        schemaVersion: Int = Self.supportedSchemaVersion,
+        id: String,
+        version: String,
+        kind: BeaconCapabilityKind,
+        title: String,
+        description: String,
+        intentExamples: [String],
+        inputSchema: [String: BeaconJSONValue],
+        outputSchema: [String: BeaconJSONValue],
+        executionLocation: BeaconExecutionLocation,
+        risk: BeaconCapabilityRisk,
+        requiredScopes: [String],
+        confirmation: BeaconConfirmationPolicy,
+        idempotency: BeaconIdempotencyPolicy,
+        dependencies: [String] = [],
+        surface: String? = nil,
+        tags: [String],
+        fallback: String? = nil,
+        offlineSafe: Bool = false
+    ) {
+        self.schemaVersion = schemaVersion
+        self.id = id
+        self.version = version
+        self.kind = kind
+        self.title = title
+        self.description = description
+        self.intentExamples = intentExamples
+        self.inputSchema = inputSchema
+        self.outputSchema = outputSchema
+        self.executionLocation = executionLocation
+        self.risk = risk
+        self.requiredScopes = requiredScopes
+        self.confirmation = confirmation
+        self.idempotency = idempotency
+        self.dependencies = dependencies
+        self.surface = surface
+        self.tags = tags
+        self.fallback = fallback
+        self.offlineSafe = offlineSafe
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)

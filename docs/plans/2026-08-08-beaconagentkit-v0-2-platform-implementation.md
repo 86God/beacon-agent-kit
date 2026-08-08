@@ -313,9 +313,9 @@ Trusted identity and scope come only from BeaconTrustedHostContext.
 - Create: python/beacon_agent_runtime/mcp.py
 - Create: python/tests/test_mcp.py
 
-- [ ] **Step 1: Test tools, schemas, structured results, embedded A2UI, negotiated MCP Apps, invalid URIs, oversized resources, forbidden shell/SQL/filesystem tools, redaction, and confirmation-required results.**
-- [ ] **Step 2: Map MCP tools into CapabilityManifest and the same policy/receipt path.** MCP resources cannot bypass native catalogs or action validation.
-- [ ] **Step 3: Run Python and Swift suites.**
+- [x] **Step 1: Test tools, schemas, structured results, embedded A2UI, negotiated MCP Apps, invalid URIs, oversized resources, forbidden shell/SQL/filesystem tools, redaction, and confirmation-required results.**
+- [x] **Step 2: Map MCP tools into CapabilityManifest and the same policy/receipt path.** MCP resources cannot bypass native catalogs or action validation.
+- [x] **Step 3: Run Python and Swift suites.**
 - [ ] **Step 4: Commit with feat(mcp): adapt MCP tools and app resources.**
 
 ## Milestone 4: JianHao integration
