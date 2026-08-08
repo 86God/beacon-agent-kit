@@ -385,11 +385,11 @@ commit: consequential_write, before_commit, idempotency required, device
 - Modify: ios/JianHaoPoC/JianHaoPoCTests/AITrainingPlanCoordinatorTests.swift
 - Create: ios/JianHaoPoC/JianHaoPoCTests/JianHaoDeviceToolBridgeTests.swift
 
-- [ ] **Step 1: Fix Calendar to Asia/Shanghai and test “安排一下明天练肩”.** Require context, candidates, draft, tomorrow dayIdentifier, confirmation, tomorrow commit, unchanged today, and local read-back.
-- [ ] **Step 2: Test identity injection rejection, confirmation, idempotency, thread ownership, and rejection of server-origin health records.**
-- [ ] **Step 3: Register existing handlers through JianHaoDeviceToolBridge.** Keep CapabilityKernel as final authorization until parity is proved.
-- [ ] **Step 4: Run coordinator, bridge, and adapter XTests.**
-- [ ] **Step 5: Commit with feat(ai): execute training plans through local tools.**
+- [x] **Step 1: Fix Calendar to Asia/Shanghai and test “安排一下明天练肩”.** Require context, candidates, draft, tomorrow dayIdentifier, confirmation, tomorrow commit, unchanged today, and local read-back.
+- [x] **Step 2: Test identity injection rejection, confirmation, idempotency, thread ownership, and rejection of server-origin health records.**
+- [x] **Step 3: Register existing handlers through JianHaoDeviceToolBridge.** Keep CapabilityKernel as final authorization until parity is proved.
+- [x] **Step 4: Run coordinator, bridge, and adapter XTests.**
+- [x] **Step 5: Commit with feat(ai): execute training plans through local tools.**
 
 ### Task 17: Render the streaming Agent timeline and training card
 
