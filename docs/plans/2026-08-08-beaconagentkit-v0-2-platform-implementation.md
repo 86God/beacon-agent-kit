@@ -139,7 +139,7 @@ rtk swift test --package-path /Users/zhanggengying/Documents/beacon-agent-kit
 - Create: Sources/BeaconAgentCore/BeaconCapabilityManifest.swift
 - Create: Tests/BeaconAgentCoreTests/BeaconCapabilityManifestTests.swift
 
-- [ ] **Step 1: Write strict-intersection tests.**
+- [x] **Step 1: Write strict-intersection tests.**
 
 ~~~python
 def test_effective_registry_is_strict_intersection() -> None:
@@ -155,10 +155,10 @@ def test_effective_registry_is_strict_intersection() -> None:
 
 Also test disabled, absent, incompatible, unauthorized, expired, duplicate, and dependency-cycle manifests.
 
-- [ ] **Step 2: Implement immutable manifests and snapshots.** Snapshot fields are revision, environment, issuedAt, expiresAt, manifest hashes, and signature. Canonicalize JSON before hashing.
-- [ ] **Step 3: Add Swift decoding of Python fixtures and reject unsupported required schema versions.**
-- [ ] **Step 4: Run Python and Swift suites.**
-- [ ] **Step 5: Commit with feat(registry): resolve effective capabilities.**
+- [x] **Step 2: Implement immutable manifests and snapshots.** Snapshot fields are revision, environment, issuedAt, expiresAt, manifest hashes, and signature. Canonicalize JSON before hashing.
+- [x] **Step 3: Add Swift decoding of Python fixtures and reject unsupported required schema versions.**
+- [x] **Step 4: Run Python and Swift suites.**
+- [x] **Step 5: Commit with feat(registry): resolve effective capabilities.**
 
 ### Task 5: Add signed snapshots and control-plane reference API
 

@@ -20,7 +20,8 @@ Updated: 2026-08-08
 - Task 1 implementation: Python reference package scaffold and versioned event envelope; source tests pass under Python 3.11.
 - Task 2 implementation: six closed JSON Schema 2020-12 wire contracts; 18 schema tests pass under Python 3.11.
 - Task 3 implementation: shared JSONL fixtures plus deterministic Python and Swift reducers. Python suite passes 29 tests; Swift suite passes 18 XCTest tests plus 4 Swift Testing conformance tests.
+- Task 4 implementation: immutable manifests, canonical hashes, effective-registry intersection, expiry/duplicate/cycle rejection, and Swift fixture decoding. Python suite passes 39 tests; Swift suite passes 18 XCTest tests plus 6 Swift Testing tests.
 
 ## Current
 
-- Task 4: Capability manifests and effective registry.
+- Task 5: Signed snapshots and control-plane reference API.
