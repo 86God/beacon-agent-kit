@@ -169,8 +169,8 @@ Also test disabled, absent, incompatible, unauthorized, expired, duplicate, and 
 - Create: control-plane/openapi.yaml
 - Create: control-plane/reference/README.md
 
-- [ ] **Step 1: Test Ed25519 signing and tamper rejection with ephemeral test keys.**
-- [ ] **Step 2: Test these endpoints:**
+- [x] **Step 1: Test Ed25519 signing and tamper rejection with ephemeral test keys.**
+- [x] **Step 2: Test these endpoints:**
 
 ~~~text
 GET /v1/capabilities
@@ -180,9 +180,9 @@ GET /v1/registry/snapshot?environment=development
 
 Unknown IDs return 404, invalid manifests return 422, state changes increment revision, and the API never grants user permission.
 
-- [ ] **Step 3: Implement FastAPI with an in-memory test store and a RegistryStore protocol.** Inject private keys; commit no keys.
-- [ ] **Step 4: Run rtk python3 -m pytest python/tests/test_control_plane.py -q.**
-- [ ] **Step 5: Commit with feat(control-plane): publish signed capability snapshots.**
+- [x] **Step 3: Implement FastAPI with an in-memory test store and a RegistryStore protocol.** Inject private keys; commit no keys.
+- [x] **Step 4: Run rtk python3 -m pytest python/tests/test_control_plane.py -q.**
+- [x] **Step 5: Commit with feat(control-plane): publish signed capability snapshots.**
 
 ### Task 6: Implement staged intent routing
 

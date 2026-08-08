@@ -1,0 +1,56 @@
+openapi: 3.1.0
+info:
+  title: BeaconAgentKit Control Plane
+  version: 0.2.0
+  description: Publishes capability state and signed registry snapshots. It never grants device or user permissions.
+paths:
+  /v1/capabilities:
+    get:
+      summary: List manifests and environment enablement
+      parameters:
+        - $ref: '#/components/parameters/Environment'
+      responses:
+        '200':
+          description: Capability declarations and current revision
+  /v1/capabilities/{capability_id}/state:
+    put:
+      summary: Enable or disable one declared capability
+      parameters:
+        - name: capability_id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [environment, enabled]
+              properties:
+                environment: {$ref: '#/components/schemas/Environment'}
+                enabled: {type: boolean}
+      responses:
+        '200': {description: Updated capability state and revision}
+        '404': {description: Unknown capability ID}
+        '422': {description: Invalid or permission-bearing request}
+  /v1/registry/snapshot:
+    get:
+      summary: Get one short-lived Ed25519-signed registry snapshot
+      parameters:
+        - $ref: '#/components/parameters/Environment'
+      responses:
+        '200': {description: Signed registry snapshot}
+        '422': {description: Invalid environment}
+components:
+  parameters:
+    Environment:
+      name: environment
+      in: query
+      required: true
+      schema: {$ref: '#/components/schemas/Environment'}
+  schemas:
+    Environment:
+      type: string
+      enum: [development, staging, production]
