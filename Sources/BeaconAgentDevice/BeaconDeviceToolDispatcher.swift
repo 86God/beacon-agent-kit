@@ -1,4 +1,5 @@
 import Foundation
+import BeaconAgentCore
 
 public enum BeaconDeviceDispatchError: Error, Equatable, Sendable {
     case unknownCapability
@@ -9,25 +10,40 @@ public enum BeaconDeviceDispatchError: Error, Equatable, Sendable {
     case confirmationRequired
     case expired
     case duplicateInFlight
+    case idempotencyConflict
     case invalidArguments
     case invalidResult
     case missingHandler
 }
 
 public actor BeaconDeviceToolDispatcher {
+    private struct IdempotencySignature: Equatable {
+        let schemaVersion: Int
+        let registryRevision: String
+        let requestedScopes: Set<String>
+        let arguments: [String: BeaconJSONValue]
+    }
+
+    private struct CompletedIdempotency {
+        let signature: IdempotencySignature
+        let observation: BeaconToolObservation
+    }
+
     private let advertisements: [String: BeaconDeviceCapabilityAdvertisement]
     private let policies: [String: BeaconDevicePolicy]
     private let handlers: [String: any BeaconDeviceToolHandler]
     private let trustedHostContext: BeaconTrustedHostContext
+    private let clock: @Sendable () -> Date
     private var inFlightToolCalls: Set<String> = []
     private var inFlightIdempotencyKeys: Set<String> = []
-    private var completedIdempotency: [String: BeaconToolObservation] = [:]
+    private var completedIdempotency: [String: CompletedIdempotency] = [:]
 
     public init(
         advertisements: [BeaconDeviceCapabilityAdvertisement],
         policies: [BeaconDevicePolicy],
         handlers: [any BeaconDeviceToolHandler],
-        trustedHostContext: BeaconTrustedHostContext
+        trustedHostContext: BeaconTrustedHostContext,
+        clock: @escaping @Sendable () -> Date = Date.init
     ) {
         self.advertisements = Dictionary(
             advertisements.map { ($0.capabilityID, $0) },
@@ -42,6 +58,7 @@ public actor BeaconDeviceToolDispatcher {
             uniquingKeysWith: { first, _ in first }
         )
         self.trustedHostContext = trustedHostContext
+        self.clock = clock
     }
 
     public func dispatch(
@@ -60,7 +77,7 @@ public actor BeaconDeviceToolDispatcher {
         guard authorization.accountID == trustedHostContext.accountID else {
             throw BeaconDeviceDispatchError.wrongAccount
         }
-        guard request.expiresAt > trustedHostContext.now else {
+        guard request.expiresAt > clock() else {
             throw BeaconDeviceDispatchError.expired
         }
         guard policy.requiredScopes.isSubset(of: trustedHostContext.authorizedScopes),
@@ -75,12 +92,24 @@ public actor BeaconDeviceToolDispatcher {
         guard policy.validates(arguments: request.arguments) else {
             throw BeaconDeviceDispatchError.invalidArguments
         }
-        if let key = request.idempotencyKey,
+        let scopedIdempotencyKey = request.idempotencyKey.map {
+            [trustedHostContext.accountID, request.capabilityID, $0].joined(separator: "|")
+        }
+        let idempotencySignature = IdempotencySignature(
+            schemaVersion: request.schemaVersion,
+            registryRevision: request.registryRevision,
+            requestedScopes: request.requestedScopes,
+            arguments: request.arguments
+        )
+        if let key = scopedIdempotencyKey,
            let completed = completedIdempotency[key] {
-            return completed.replayed(for: request.toolCallID)
+            guard completed.signature == idempotencySignature else {
+                throw BeaconDeviceDispatchError.idempotencyConflict
+            }
+            return completed.observation.replayed(for: request.toolCallID)
         }
         if inFlightToolCalls.contains(request.toolCallID)
-            || request.idempotencyKey.map(inFlightIdempotencyKeys.contains) == true {
+            || scopedIdempotencyKey.map(inFlightIdempotencyKeys.contains) == true {
             throw BeaconDeviceDispatchError.duplicateInFlight
         }
         guard let handler = handlers[request.capabilityID] else {
@@ -88,12 +117,12 @@ public actor BeaconDeviceToolDispatcher {
         }
 
         inFlightToolCalls.insert(request.toolCallID)
-        if let key = request.idempotencyKey {
+        if let key = scopedIdempotencyKey {
             inFlightIdempotencyKeys.insert(key)
         }
         defer {
             inFlightToolCalls.remove(request.toolCallID)
-            if let key = request.idempotencyKey {
+            if let key = scopedIdempotencyKey {
                 inFlightIdempotencyKeys.remove(key)
             }
         }
@@ -106,8 +135,11 @@ public actor BeaconDeviceToolDispatcher {
         guard policy.validates(output: observation.payload) else {
             throw BeaconDeviceDispatchError.invalidResult
         }
-        if let key = request.idempotencyKey {
-            completedIdempotency[key] = observation
+        if let key = scopedIdempotencyKey {
+            completedIdempotency[key] = CompletedIdempotency(
+                signature: idempotencySignature,
+                observation: observation
+            )
         }
         return observation
     }

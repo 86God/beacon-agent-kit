@@ -89,6 +89,95 @@ struct BeaconDeviceToolDispatcherTests {
     }
 
     @Test
+    func idempotencyKeyReuseWithChangedArgumentsFailsClosed() async throws {
+        let handler = CountingHandler()
+        let fixture = makeFixture(handler: handler)
+        _ = try await fixture.dispatcher.dispatch(
+            fixture.request,
+            authorization: fixture.authorization
+        )
+        let changedRequest = BeaconDeviceToolRequest(
+            runID: fixture.request.runID,
+            toolCallID: "tool-2",
+            capabilityID: fixture.request.capabilityID,
+            schemaVersion: fixture.request.schemaVersion,
+            registryRevision: fixture.request.registryRevision,
+            requestedScopes: fixture.request.requestedScopes,
+            arguments: ["targetDate": .string("2027-01-16")],
+            idempotencyKey: fixture.request.idempotencyKey,
+            expiresAt: fixture.request.expiresAt
+        )
+
+        do {
+            _ = try await fixture.dispatcher.dispatch(
+                changedRequest,
+                authorization: fixture.authorization
+            )
+            Issue.record("Expected idempotency conflict")
+        } catch let error as BeaconDeviceDispatchError {
+            #expect(error == .idempotencyConflict)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        #expect(await handler.callCount == 1)
+    }
+
+    @Test
+    func expiryUsesDispatchTimeInsteadOfHostInitializationSnapshot() async {
+        let handler = CountingHandler()
+        let snapshot = Date(timeIntervalSince1970: 1_700_000_000)
+        let dispatcher = BeaconDeviceToolDispatcher(
+            advertisements: [
+                BeaconDeviceCapabilityAdvertisement(
+                    capabilityID: handler.capabilityID,
+                    version: "1.0.0",
+                    supportedSchemaVersions: [2],
+                    enabled: true
+                )
+            ],
+            policies: [
+                BeaconDevicePolicy(
+                    capabilityID: handler.capabilityID,
+                    requiredScopes: ["training.read"],
+                    confirmation: .never,
+                    inputSchema: ["type": .string("object")]
+                )
+            ],
+            handlers: [handler],
+            trustedHostContext: BeaconTrustedHostContext(
+                accountID: "account-1",
+                deviceID: "device-1",
+                authorizedScopes: ["training.read"],
+                now: snapshot
+            )
+        )
+        let request = BeaconDeviceToolRequest(
+            runID: "run-expired",
+            toolCallID: "tool-expired",
+            capabilityID: handler.capabilityID,
+            schemaVersion: 2,
+            registryRevision: "registry-1",
+            requestedScopes: ["training.read"],
+            arguments: [:],
+            idempotencyKey: nil,
+            expiresAt: Date().addingTimeInterval(-1)
+        )
+
+        do {
+            _ = try await dispatcher.dispatch(
+                request,
+                authorization: .init(accountID: "account-1", confirmedToolCallIDs: [])
+            )
+            Issue.record("Expected request to be expired at dispatch time")
+        } catch let error as BeaconDeviceDispatchError {
+            #expect(error == .expired)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        #expect(await handler.callCount == 0)
+    }
+
+    @Test
     func invalidHandlerResultFailsClosed() async {
         let fixture = makeFixture(
             handler: InvalidOutputHandler(),
@@ -254,7 +343,8 @@ struct BeaconDeviceToolDispatcherTests {
                 advertisements: [advertisement],
                 policies: [policy],
                 handlers: [handler],
-                trustedHostContext: host
+                trustedHostContext: host,
+                clock: { now }
             ),
             request: request,
             authorization: authorization
