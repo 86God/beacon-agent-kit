@@ -437,12 +437,12 @@ commit: consequential_write, before_commit, idempotency required, device
 - Create: poc/tests/test_private_coach_knowledge.py
 - Create: services/ai-gateway/jianhao_ai_gateway/private_coach_knowledge.py
 
-- [ ] **Step 1: Use authoritative sources and original JianHao summaries.** Seed the source registry with the WHO 2020 physical-activity guideline (https://www.who.int/publications/i/item/9789240014886), the current U.S. Physical Activity Guidelines page (https://odphp.health.gov/our-work/nutrition-physical-activity/physical-activity-guidelines/current-guidelines), and the current ACSM resistance-training position-stand page (https://acsm.org/resistance-training-guidelines-update-2026/). Treat source authority, commercial reuse, content review, and release approval as separate gates. Do not ingest ACSM copyrighted text; store original summaries and citations unless explicit reuse terms permit more.
-- [ ] **Step 2: Reject unsupported diagnosis/treatment, uncited numeric advice, expired review, and missing locale.**
-- [ ] **Step 3: Cover progressive overload, volume/intensity basics, recovery, warm-up, pain stop conditions, beginner adaptation, equipment constraints, and professional referral.**
-- [ ] **Step 4: Test citations, missing-evidence admission, and medical-boundary refusal.**
-- [ ] **Step 5: Run PoC report and gateway tests.**
-- [ ] **Step 6: Commit with feat(ai): add cited private-coach knowledge pack.**
+- [x] **Step 1: Use authoritative sources and original JianHao summaries.** Seed the source registry with the WHO 2020 physical-activity guideline (https://www.who.int/publications/i/item/9789240014886), the current U.S. Physical Activity Guidelines page (https://odphp.health.gov/our-work/nutrition-physical-activity/physical-activity-guidelines/current-guidelines), and the current ACSM resistance-training position-stand page (https://acsm.org/resistance-training-guidelines-update-2026/). Treat source authority, commercial reuse, content review, and release approval as separate gates. Do not ingest ACSM copyrighted text; store original summaries and citations unless explicit reuse terms permit more.
+- [x] **Step 2: Reject unsupported diagnosis/treatment, uncited numeric advice, expired review, and missing locale.**
+- [x] **Step 3: Cover progressive overload, volume/intensity basics, recovery, warm-up, pain stop conditions, beginner adaptation, equipment constraints, and professional referral.**
+- [x] **Step 4: Test citations, missing-evidence admission, and medical-boundary refusal.**
+- [x] **Step 5: Run PoC report and gateway tests.**
+- [x] **Step 6: Commit with feat(ai): add cited private-coach knowledge pack.**
 
 ### Task 20: Add evaluation, security docs, CI, and example
 

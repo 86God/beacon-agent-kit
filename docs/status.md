@@ -16,3 +16,13 @@ Guardrails:
 - `BeaconAgentCore` remains Foundation-only.
 - BeaconAgentKit contains no app-specific food, supplement, workout, posture, prompt, or backend client models.
 - Apple event support is model-only; no HealthKit, ActivityKit, Watch, notification, location, or App Intents adapters are implemented in v0.1.
+
+## 2026-08-08 v0.2 implementation
+
+Completed through Task 19:
+
+- Framework-neutral capability registry, signed control-plane snapshots, staged routing, bounded resumable Agent loop, device execution contracts, AG-UI streaming, A2UI runtime, MCP Apps adapters, renderer catalog, observability, and package boundary checks.
+- JianHao integration through a capability pack and device-local tool bridge for the streamed “安排一下明天练肩” workflow, including editable draft UI and tomorrow persistence.
+- Provider-neutral knowledge contracts and JianHao private-coach knowledge pack v1. The product pack uses reviewed original summaries of authoritative sources, requires resolved citations for evidence, rejects unsupported medical advice, and admits when reviewed evidence is missing.
+
+Current task: Task 20, evaluation, security documentation, CI, and a domain-neutral example.
