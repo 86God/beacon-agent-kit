@@ -6,7 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from .events import ApprovalInterruptAction, ToolObservation
+from .events import ApprovalInterruptAction, ToolObservation, ToolRequestAction
 
 
 @dataclass
@@ -20,6 +20,7 @@ class RuntimeCheckpoint:
     retries: int = 0
     next_sequence: int = 0
     pending_approval: ApprovalInterruptAction | None = None
+    pending_device_tool: ToolRequestAction | None = None
     approved_tool_calls: set[str] = field(default_factory=set)
     completed_idempotency: dict[str, ToolObservation] = field(default_factory=dict)
 

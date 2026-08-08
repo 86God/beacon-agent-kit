@@ -70,6 +70,7 @@ def make_runtime(
     checkpoints: InMemoryCheckpointStore,
     sink: ListEventSink,
     limits: AgentRuntimeLimits | None = None,
+    interrupt_device_tools: bool = False,
 ) -> AgentRuntime:
     return AgentRuntime(
         model=model,
@@ -81,6 +82,7 @@ def make_runtime(
             EffectiveRegistry(revision="registry-1", capabilities=manifests)
         ),
         limits=limits or AgentRuntimeLimits(),
+        interrupt_device_tools=interrupt_device_tools,
     )
 
 
@@ -169,3 +171,107 @@ def test_completed_idempotency_key_is_replayed_without_second_write() -> None:
     assert result.status == "finished"
     assert dispatcher.calls == 1
 
+
+def test_device_tool_interrupt_resumes_with_schema_valid_local_observation() -> None:
+    lookup = manifest("training.context.read")
+    action = ToolRequestAction("tool-device", lookup.id, {}, ("training.read",), None)
+    checkpoints = InMemoryCheckpointStore()
+    sink = ListEventSink()
+    dispatcher = FlakyDispatcher(0)
+    agent = make_runtime(
+        QueueModel([action, FinishAction("已读取本机训练上下文")]),
+        dispatcher,
+        (lookup,),
+        checkpoints,
+        sink,
+        interrupt_device_tools=True,
+    )
+
+    interrupted = agent.start(
+        run_id="run-device",
+        query="读取我的训练记录",
+        authorized_scopes={"training.read"},
+    )
+    pending = checkpoints.load("run-device")
+    finished = agent.resume_device_tool(
+        run_id="run-device",
+        tool_call_id="tool-device",
+        observation={"recordId": "iphone-local-1"},
+    )
+
+    assert interrupted.status == "interrupted"
+    assert pending is not None
+    assert pending.pending_device_tool == action
+    assert dispatcher.calls == 0
+    assert finished.status == "finished"
+    assert [str(event.type) for event in sink.events] == [
+        "run.started",
+        "step.started",
+        "tool.start",
+        "step.finished",
+        "run.interrupted",
+        "tool.result",
+        "tool.end",
+        "step.started",
+        "text.start",
+        "text.delta",
+        "text.end",
+        "step.finished",
+        "run.finished",
+    ]
+    assert sink.events[4].payload == {
+        "reason": "device_tool_required",
+        "toolCallId": "tool-device",
+        "capabilityId": lookup.id,
+        "arguments": {},
+    }
+    assert sink.events[5].payload["result"] == {"recordId": "iphone-local-1"}
+
+
+def test_device_tool_resume_rejects_mismatched_or_invalid_observation_without_advancing() -> None:
+    lookup = CapabilityManifest(
+        **{
+            **manifest("training.context.read").model_dump(by_alias=True),
+            "outputSchema": {
+                "type": "object",
+                "properties": {"recordId": {"type": "string"}},
+                "required": ["recordId"],
+                "additionalProperties": False,
+            },
+        }
+    )
+    action = ToolRequestAction("tool-device", lookup.id, {}, ("training.read",), None)
+    checkpoints = InMemoryCheckpointStore()
+    sink = ListEventSink()
+    agent = make_runtime(
+        QueueModel([action, FinishAction("done")]),
+        FlakyDispatcher(0),
+        (lookup,),
+        checkpoints,
+        sink,
+        interrupt_device_tools=True,
+    )
+    agent.start(
+        run_id="run-invalid-device-result",
+        query="read",
+        authorized_scopes={"training.read"},
+    )
+    sequence_before = checkpoints.load("run-invalid-device-result").next_sequence
+
+    mismatch = agent.resume_device_tool(
+        run_id="run-invalid-device-result",
+        tool_call_id="another-tool",
+        observation={"recordId": "local-1"},
+    )
+    invalid = agent.resume_device_tool(
+        run_id="run-invalid-device-result",
+        tool_call_id="tool-device",
+        observation={"unexpected": True},
+    )
+    still_pending = checkpoints.load("run-invalid-device-result")
+
+    assert mismatch.error_code == "device_tool_mismatch"
+    assert invalid.error_code == "invalid_tool_result"
+    assert still_pending is not None
+    assert still_pending.pending_device_tool == action
+    assert still_pending.next_sequence == sequence_before

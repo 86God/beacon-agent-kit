@@ -89,6 +89,7 @@ class AgentRuntime:
         event_sink: EventSink,
         registry: RegistryProvider,
         limits: AgentRuntimeLimits,
+        interrupt_device_tools: bool = False,
     ) -> None:
         self.model = model
         self.dispatcher = dispatcher
@@ -97,6 +98,7 @@ class AgentRuntime:
         self.event_sink = event_sink
         self.registry = registry
         self.limits = limits
+        self.interrupt_device_tools = interrupt_device_tools
 
     def start(
         self,
@@ -152,6 +154,33 @@ class AgentRuntime:
         checkpoint.next_sequence = emitter.next_sequence
         return self._drive(checkpoint, emitter)
 
+    def resume_device_tool(
+        self,
+        *,
+        run_id: str,
+        tool_call_id: str,
+        observation: dict[str, Any],
+    ) -> AgentRunResult:
+        """Resume a device-bound tool call with an observation supplied by the host app."""
+
+        checkpoint = self.checkpoints.load(run_id)
+        if checkpoint is None or checkpoint.pending_device_tool is None:
+            return AgentRunResult(run_id, "error", error_code="checkpoint_missing")
+        pending = checkpoint.pending_device_tool
+        if pending.tool_call_id != tool_call_id:
+            return AgentRunResult(run_id, "error", error_code="device_tool_mismatch")
+        manifest = self._manifest(pending.capability_id, self.registry.current())
+        try:
+            validated = self._validated_observation(pending, manifest, observation)
+        except RuntimeFailure as failure:
+            return AgentRunResult(run_id, "error", error_code=failure.code)
+
+        emitter = AgentEventEmitter(run_id, self.event_sink, checkpoint.next_sequence)
+        checkpoint.pending_device_tool = None
+        self._record_observation(pending, validated, checkpoint, emitter, replayed=False)
+        checkpoint.next_sequence = emitter.next_sequence
+        return self._drive(checkpoint, emitter)
+
     def _drive(
         self,
         checkpoint: RuntimeCheckpoint,
@@ -178,6 +207,23 @@ class AgentRuntime:
                 emitter.emit(AgentEventType.STEP_STARTED, {"step": checkpoint.steps})
 
                 if isinstance(action, ToolRequestAction):
+                    if self.interrupt_device_tools and self._is_device_tool(action, effective):
+                        replayed = self._interrupt_device_tool(action, effective, checkpoint, emitter)
+                        emitter.emit(AgentEventType.STEP_FINISHED, {"step": checkpoint.steps})
+                        if not replayed:
+                            emitter.emit(
+                                AgentEventType.RUN_INTERRUPTED,
+                                {
+                                    "reason": "device_tool_required",
+                                    "toolCallId": action.tool_call_id,
+                                    "capabilityId": action.capability_id,
+                                    "arguments": action.arguments,
+                                },
+                            )
+                            self._save(checkpoint, emitter)
+                            return AgentRunResult(checkpoint.run_id, "interrupted")
+                        self._save(checkpoint, emitter)
+                        continue
                     self._execute_tool(action, effective, checkpoint, emitter)
                     emitter.emit(AgentEventType.STEP_FINISHED, {"step": checkpoint.steps})
                     self._save(checkpoint, emitter)
@@ -232,26 +278,7 @@ class AgentRuntime:
         checkpoint: RuntimeCheckpoint,
         emitter: AgentEventEmitter,
     ) -> None:
-        if checkpoint.tools >= self.limits.max_tools:
-            raise RuntimeFailure("tool_limit", "Agent tool limit reached")
-        manifest = next(
-            (item for item in registry.capabilities if item.id == action.capability_id),
-            None,
-        )
-        if manifest is None:
-            raise RuntimeFailure("unknown_capability", "Capability is not in the effective registry")
-        try:
-            Draft202012Validator(manifest.input_schema).validate(action.arguments)
-        except ValidationError as error:
-            raise RuntimeFailure("invalid_tool_arguments", "Tool arguments failed schema validation") from error
-        decision = self.policy.authorize(
-            action,
-            manifest,
-            checkpoint.authorized_scopes,
-            checkpoint.approved_tool_calls,
-        )
-        if not decision.allowed:
-            raise RuntimeFailure("policy_denied", decision.safe_reason)
+        manifest = self._authorize_tool(action, registry, checkpoint)
 
         checkpoint.tools += 1
         emitter.emit(
@@ -287,14 +314,84 @@ class AgentRuntime:
                 except Exception as error:
                     raise RuntimeFailure("tool_failure", "Tool execution failed") from error
         replayed = observation.tool_call_id != action.tool_call_id
-        observation = ToolObservation(action.tool_call_id, action.capability_id, observation.data)
+        observation = self._validated_observation(action, manifest, observation.data)
+        self._record_observation(action, observation, checkpoint, emitter, replayed=replayed)
+
+    def _is_device_tool(self, action: ToolRequestAction, registry: EffectiveRegistry) -> bool:
+        return str(self._manifest(action.capability_id, registry).execution_location) == "device"
+
+    def _interrupt_device_tool(
+        self,
+        action: ToolRequestAction,
+        registry: EffectiveRegistry,
+        checkpoint: RuntimeCheckpoint,
+        emitter: AgentEventEmitter,
+    ) -> bool:
+        manifest = self._authorize_tool(action, registry, checkpoint)
+        checkpoint.tools += 1
+        emitter.emit(
+            AgentEventType.TOOL_START,
+            {
+                "toolCallId": action.tool_call_id,
+                "capabilityId": action.capability_id,
+                "executionLocation": "device",
+            },
+        )
+        replay = (
+            checkpoint.completed_idempotency.get(action.idempotency_key)
+            if action.idempotency_key
+            else None
+        )
+        if replay is not None:
+            observation = self._validated_observation(action, manifest, replay.data)
+            self._record_observation(action, observation, checkpoint, emitter, replayed=True)
+            return True
+        checkpoint.pending_device_tool = action
+        return False
+
+    def _authorize_tool(
+        self,
+        action: ToolRequestAction,
+        registry: EffectiveRegistry,
+        checkpoint: RuntimeCheckpoint,
+    ) -> CapabilityManifest:
+        if checkpoint.tools >= self.limits.max_tools:
+            raise RuntimeFailure("tool_limit", "Agent tool limit reached")
+        manifest = self._manifest(action.capability_id, registry)
         try:
-            Draft202012Validator(manifest.output_schema).validate(observation.data)
+            Draft202012Validator(manifest.input_schema).validate(action.arguments)
+        except ValidationError as error:
+            raise RuntimeFailure("invalid_tool_arguments", "Tool arguments failed schema validation") from error
+        decision = self.policy.authorize(
+            action,
+            manifest,
+            checkpoint.authorized_scopes,
+            checkpoint.approved_tool_calls,
+        )
+        if not decision.allowed:
+            raise RuntimeFailure("policy_denied", decision.safe_reason)
+        return manifest
+
+    @staticmethod
+    def _manifest(capability_id: str, registry: EffectiveRegistry) -> CapabilityManifest:
+        manifest = next((item for item in registry.capabilities if item.id == capability_id), None)
+        if manifest is None:
+            raise RuntimeFailure("unknown_capability", "Capability is not in the effective registry")
+        return manifest
+
+    def _validated_observation(
+        self,
+        action: ToolRequestAction,
+        manifest: CapabilityManifest,
+        data: dict[str, Any],
+    ) -> ToolObservation:
+        try:
+            Draft202012Validator(manifest.output_schema).validate(data)
         except ValidationError as error:
             raise RuntimeFailure("invalid_tool_result", "Tool result failed schema validation") from error
         try:
             encoded = json.dumps(
-                observation.data,
+                data,
                 ensure_ascii=False,
                 separators=(",", ":"),
                 sort_keys=True,
@@ -303,6 +400,17 @@ class AgentRuntime:
             raise RuntimeFailure("invalid_tool_result", "Tool result is not JSON serializable") from error
         if len(encoded) > self.limits.max_observation_bytes:
             raise RuntimeFailure("observation_too_large", "Tool observation exceeds safe limit")
+        return ToolObservation(action.tool_call_id, action.capability_id, data)
+
+    @staticmethod
+    def _record_observation(
+        action: ToolRequestAction,
+        observation: ToolObservation,
+        checkpoint: RuntimeCheckpoint,
+        emitter: AgentEventEmitter,
+        *,
+        replayed: bool,
+    ) -> None:
         if action.idempotency_key and not replayed:
             checkpoint.completed_idempotency[action.idempotency_key] = observation
         checkpoint.observations.append(observation)
