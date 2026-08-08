@@ -115,6 +115,93 @@ struct BeaconDeviceToolDispatcherTests {
         }
     }
 
+    @Test
+    func nullableAndNestedSchemasValidateRecursively() async throws {
+        let handler = StructuredHandler()
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let dispatcher = BeaconDeviceToolDispatcher(
+            advertisements: [
+                BeaconDeviceCapabilityAdvertisement(
+                    capabilityID: handler.capabilityID,
+                    version: "1.0.0",
+                    supportedSchemaVersions: [2],
+                    enabled: true
+                )
+            ],
+            policies: [
+                BeaconDevicePolicy(
+                    capabilityID: handler.capabilityID,
+                    requiredScopes: ["training.read"],
+                    confirmation: .never,
+                    inputSchema: [
+                        "type": .string("object"),
+                        "additionalProperties": .bool(false),
+                        "required": .array([.string("limitations")]),
+                        "properties": .object([
+                            "limitations": .object([
+                                "type": .string("array"),
+                                "items": .object(["type": .string("string")])
+                            ])
+                        ])
+                    ],
+                    outputSchema: [
+                        "type": .string("object"),
+                        "additionalProperties": .bool(false),
+                        "required": .array([.string("existingPlan"), .string("items")]),
+                        "properties": .object([
+                            "existingPlan": .object([
+                                "type": .array([.string("object"), .string("null")])
+                            ]),
+                            "items": .object([
+                                "type": .string("array"),
+                                "minItems": .number(1),
+                                "items": .object([
+                                    "type": .string("object"),
+                                    "additionalProperties": .bool(false),
+                                    "required": .array([.string("name")]),
+                                    "properties": .object([
+                                        "name": .object([
+                                            "type": .string("string"),
+                                            "minLength": .number(1)
+                                        ])
+                                    ])
+                                ])
+                            ])
+                        ])
+                    ]
+                )
+            ],
+            handlers: [handler],
+            trustedHostContext: BeaconTrustedHostContext(
+                accountID: "account-1",
+                deviceID: "device-1",
+                authorizedScopes: ["training.read"],
+                now: now
+            )
+        )
+        let request = BeaconDeviceToolRequest(
+            runID: "run-structured",
+            toolCallID: "tool-structured",
+            capabilityID: handler.capabilityID,
+            schemaVersion: 2,
+            registryRevision: "registry-1",
+            requestedScopes: ["training.read"],
+            arguments: ["limitations": .array([.string("腰部不适")])],
+            idempotencyKey: nil,
+            expiresAt: now.addingTimeInterval(60)
+        )
+
+        let observation = try await dispatcher.dispatch(
+            request,
+            authorization: BeaconDeviceRunAuthorization(
+                accountID: "account-1",
+                confirmedToolCallIDs: []
+            )
+        )
+
+        #expect(observation.payload["existingPlan"] == .null)
+    }
+
     private func makeFixture(
         handler: some BeaconDeviceToolHandler,
         failure: FailureCase? = nil,
@@ -240,6 +327,21 @@ private actor InvalidOutputHandler: BeaconDeviceToolHandler {
             toolCallID: request.toolCallID,
             capabilityID: request.capabilityID,
             payload: ["unexpected": .bool(true)]
+        )
+    }
+}
+
+private actor StructuredHandler: BeaconDeviceToolHandler {
+    nonisolated let capabilityID = "training.structured.read"
+
+    func execute(_ request: BeaconAuthorizedToolRequest) async throws -> BeaconToolObservation {
+        BeaconToolObservation(
+            toolCallID: request.toolCallID,
+            capabilityID: request.capabilityID,
+            payload: [
+                "existingPlan": .null,
+                "items": .array([.object(["name": .string("肩部训练")])])
+            ]
         )
     }
 }
