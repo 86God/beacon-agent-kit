@@ -72,7 +72,7 @@ def test_agent_event_round_trips() -> None:
 ~~~
 
 - [x] **Step 2: Run rtk python3 -m pytest python/tests/test_protocol.py -q and verify collection fails because the module is missing.**
-- [ ] **Step 3: Add Python >=3.12 metadata and Pydantic models.** Declare Pydantic, jsonschema, cryptography, FastAPI, httpx, and pytest with bounded major versions. AgentEvent is frozen, validates positive schemaVersion, non-empty IDs, and non-negative sequence. Install the editable test environment with rtk python3 -m pip install -e 'python[test]'. (Models and metadata are complete; editable Python 3.12 environment verification is still pending.)
+- [x] **Step 3: Add Python >=3.12 metadata and Pydantic models.** Declare Pydantic, jsonschema, cryptography, FastAPI, httpx, and pytest with bounded major versions. AgentEvent is frozen, validates positive schemaVersion, non-empty IDs, and non-negative sequence. Install the editable test environment with rtk python3 -m pip install -e 'python[test]'. (Verified in an editable Python 3.14 environment, satisfying the Python >=3.12 gate.)
 - [x] **Step 4: Rerun the test and expect 1 passed.**
 - [x] **Step 5: Commit with feat(runtime): scaffold Python protocol package.**
 

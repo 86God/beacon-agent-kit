@@ -13,7 +13,7 @@ Updated: 2026-08-08
 - BeaconAgentKit Swift package: 18 tests passed.
 - JianHao focused Agent/Assistant iOS Simulator test command exited successfully on iPhone 17, iOS 26.5.
 - JianHao gateway initially failed collection because the isolated environment lacked `ag-ui-protocol` and `a2ui-agent-sdk`; this is an environment baseline issue, not an application assertion failure.
-- The machine system Python is 3.11.1. Python 3.12 managed installation was attempted, but the download stalled; framework TDD currently runs source tests under Python 3.11 while package metadata and future CI require Python 3.12.
+- The machine system Python is 3.11.1. A repository-local editable environment now runs Python 3.14.3, satisfying the package's Python >=3.12 requirement; its complete Python suite passes 29 tests.
 
 ## Completed
 
@@ -23,5 +23,4 @@ Updated: 2026-08-08
 
 ## Current
 
-- Task 1 environment gate: editable install and verification under Python 3.12.
 - Task 4: Capability manifests and effective registry.
