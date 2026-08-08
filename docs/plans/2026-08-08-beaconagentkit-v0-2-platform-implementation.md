@@ -471,14 +471,14 @@ commit: consequential_write, before_commit, idempotency required, device
 **Files:**
 - Create: docs/product_goal_beacon_agent_v0_2_report.md in JianHao
 
-- [ ] **Step 1: Run framework gates:**
+- [x] **Step 1: Run framework gates:**
 
 ~~~bash
 rtk python3 -m pytest python/tests -q
 rtk swift test --package-path /Users/zhanggengying/Documents/beacon-agent-kit
 ~~~
 
-- [ ] **Step 2: Run JianHao gateway and PoC gates:**
+- [x] **Step 2: Run JianHao gateway and PoC gates:**
 
 ~~~bash
 rtk python3 -m pytest services/ai-gateway/tests poc/tests -q
@@ -486,24 +486,24 @@ rtk python3 poc/tools/build_poc_report.py
 rtk ./poc/ios-physical-readiness.sh
 ~~~
 
-- [ ] **Step 3: Run the complete iOS Simulator suite:**
+- [x] **Step 3: Run the complete iOS Simulator suite:**
 
 ~~~bash
 rtk xcodebuild -project ios/JianHaoPoC/JianHaoPoC.xcodeproj -scheme JianHaoPoC -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' test
 ~~~
 
-- [ ] **Step 4: Verify on a physical device:** authenticated streaming, reconnect, local reads, edit/replace/reorder, confirmation, tomorrow persistence, idempotent retry, and local read-back. Report signing blockers separately.
-- [ ] **Step 5: Record commits, commands, pass/fail counts, screenshots, privacy evidence, timings, blockers, and live-service usage in the report.**
-- [ ] **Step 6: Commit the evidence report.**
+- [x] **Step 4: Verify on a physical device:** authenticated streaming, reconnect, local reads, edit/replace/reorder, confirmation, tomorrow persistence, idempotent retry, and local read-back. Report signing blockers separately.
+- [x] **Step 5: Record commits, commands, pass/fail counts, screenshots, privacy evidence, timings, blockers, and live-service usage in the report.**
+- [x] **Step 6: Commit the evidence report.**
 
 ### Task 22: Review and prepare merge
 
-- [ ] **Step 1: Inspect branch logs and diff stats in both repositories.**
-- [ ] **Step 2: Confirm JianHao diff excludes pre-existing user changes.**
-- [ ] **Step 3: Review first for privacy boundaries, unauthorized writes, incompatibility, replay/idempotency, date loss, non-streaming UI, and missing device evidence.**
-- [ ] **Step 4: Fix correctness findings and rerun affected gates.**
-- [ ] **Step 5: Merge locally only when no user-owned change can be overwritten. Otherwise preserve verified branches and report the exact blocker.**
-- [ ] **Step 6: Stop before push, tag, release, package publication, or deployment. Provide proposed external commands and verified commit IDs for user approval.**
+- [x] **Step 1: Inspect branch logs and diff stats in both repositories.**
+- [x] **Step 2: Confirm JianHao diff excludes pre-existing user changes.**
+- [x] **Step 3: Review first for privacy boundaries, unauthorized writes, incompatibility, replay/idempotency, date loss, non-streaming UI, and missing device evidence.**
+- [x] **Step 4: Fix correctness findings and rerun affected gates.**
+- [x] **Step 5: Merge locally only when no user-owned change can be overwritten. Otherwise preserve verified branches and report the exact blocker.**
+- [x] **Step 6: Stop before push, tag, release, package publication, or deployment. Provide proposed external commands and verified commit IDs for user approval.**
 
 ## Final done criteria
 

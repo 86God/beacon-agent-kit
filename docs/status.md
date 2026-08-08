@@ -31,4 +31,20 @@ Task 20 also completed:
 - The repository includes a v0.2 threat model, security policy, contribution guide, keyless CI gates, and a domain-neutral two-tool device loop example.
 - Framework gate: 76 Python tests and 52 Swift tests passed on 2026-08-08.
 
-Current task: Task 21, complete integrated regression and evidence report.
+Task 21 also completed:
+
+- Framework: 76 Python and 52 Swift tests passed.
+- JianHao gateway + PoC: 815 tests passed after aligning six stale source assertions with the current adaptive-theme implementation.
+- iPhone 17 / iOS 26.5 Simulator: 1,693 tests passed with no failure or skip; the streamed tomorrow-training card was captured in light and dark themes.
+- Before the user limited subsequent deployment to Simulator only, an iPhone 17 Pro Max / iOS 26.5.2 ran 33 focused training-Agent, device-tool, confirmation, idempotency, protocol, and resume tests with no failure. No later physical-device command is authorized.
+- Evidence report: `docs/product_goal_beacon_agent_v0_2_report.md` in the JianHao integration branch.
+
+Task 22 completed:
+
+- Independent review found no P0/P1 defect. Final hardening removed silent date fallback, made reusable action-group persistence visible in the confirmation copy, added latest-UI adapter compatibility evidence, enforced fail-closed knowledge review expiry/status checks, and expanded high-risk symptom refusal tests.
+- Latest JianHao UI baseline `02679cc0` was preserved and the Agent commits were replayed onto `codex/beacon-agent-v0-2-merged`; original untracked design assets were excluded.
+- Final JianHao gate: 819 Gateway + PoC tests passed; iPhone 17 / iOS 26.5 Simulator completed 1,714 tests with no failure or skip; the merged app launched on that Simulator.
+- Framework gate remained 76 Python and 52 Swift tests passing.
+- No push, tag, package publication, service deployment, or Release was performed.
+
+Current state: BeaconAgentKit v0.2 implementation plan complete; awaiting explicit approval for any external publication.
