@@ -281,11 +281,11 @@ Trusted identity and scope come only from BeaconTrustedHostContext.
 - Create: Sources/BeaconAgentSwiftUI/BeaconSurfaceRendererCatalog.swift
 - Create: Sources/BeaconAgentSwiftUI/BeaconGenericSurfaceView.swift
 
-- [ ] **Step 1: Test create/update/snapshot/patch/complete plus unknown component, cycle, dangling reference, identity injection, oversized text, invalid action, and revision gap.**
-- [ ] **Step 2: Implement Foundation-only A2UI state with atomic patching and snapshot recovery.**
-- [ ] **Step 3: Add generic Text, Row, Column, Card, Button, Metric, List, Table, Notice, Error, Retry, Approval, and Receipt renderers.** Unknown surfaces use safe text fallback with actions disabled.
-- [ ] **Step 4: Run Swift tests.**
-- [ ] **Step 5: Commit with feat(a2ui): add validated streaming surface runtime.**
+- [x] **Step 1: Test create/update/snapshot/patch/complete plus unknown component, cycle, dangling reference, identity injection, oversized text, invalid action, and revision gap.**
+- [x] **Step 2: Implement Foundation-only A2UI state with atomic patching and snapshot recovery.**
+- [x] **Step 3: Add generic Text, Row, Column, Card, Button, Metric, List, Table, Notice, Error, Retry, Approval, and Receipt renderers.** Unknown surfaces use safe text fallback with actions disabled.
+- [x] **Step 4: Run Swift tests.**
+- [x] **Step 5: Commit with feat(a2ui): add validated streaming surface runtime.**
 
 ### Task 11: Extract progressive Markdown and activity UI
 
