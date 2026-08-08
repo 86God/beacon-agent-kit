@@ -31,7 +31,9 @@ Updated: 2026-08-08
 - Task 12 implementation: MCP tools map through host-owned policy profiles into capability manifests; structured results are schema-checked and redacted; embedded A2UI is catalog-validated; MCP Apps metadata requires negotiation; invalid/oversized resources and generic shell, SQL, or filesystem primitives fail closed. Python suite passes 61 tests and Swift passes 18 XCTest tests plus 28 Swift Testing tests; the iOS Simulator package build passes.
 - Task 13 JianHao integration: four local-first training capability manifests declare strict schemas, dependencies, device execution, draft/write risks, confirmation, idempotency, and the versioned training draft surface. Three focused iOS Simulator tests pass; legacy ToolContract loading remains available for parity.
 - Task 14 JianHao integration: all BeaconAgentKit products are linked; Markdown and both legacy SSE paths now use shared framework parsing through compatibility adapters; framework manifests and non-interactive A2UI are bridged into the host; domain cards, persistence, interactive renderers, handlers, and CapabilityKernel authorization remain product-owned. The focused AgentRuntime/AG-UI/A2UI/Markdown/ToolContract/CapabilityKernel simulator suite passes.
+- Task 15 framework prerequisite: device-bound tool calls can now pause without server execution and resume only with a schema-valid host observation; invalid or mismatched observations leave the checkpoint pending. The Beacon Python suite passes 63 tests.
+- Task 15 JianHao integration: the gateway consumes the sibling package as an editable dependency, resolves the strict server/host/compatibility/scope/policy capability intersection, streams stable v2 events before model completion, isolates runs by authenticated installation, and resumes device tools without synthesizing server health records. Existing v1 routes remain unchanged; the complete gateway suite passes 282 tests on Python 3.14.
 
 ## Current
 
-- Task 15: Host the runtime in the JianHao gateway.
+- Task 16: Execute the training workflow through device-local tools.

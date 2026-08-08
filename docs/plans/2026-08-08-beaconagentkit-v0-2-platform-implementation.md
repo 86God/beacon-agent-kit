@@ -300,7 +300,7 @@ Trusted identity and scope come only from BeaconTrustedHostContext.
 - [x] **Step 2: Render completed blocks immediately and only the incomplete tail provisionally.** Finalization must not restyle completed blocks.
 - [x] **Step 3: Render activity/tool rows in place using redacted summaries.**
 - [x] **Step 4: Run full Swift tests and an iOS Simulator package build.**
-- [ ] **Step 5: Commit with feat(ui): add progressive markdown and agent activity views.**
+- [x] **Step 5: Commit with feat(ui): add progressive markdown and agent activity views.**
 
 ### Task 12: Add MCP and MCP Apps adapters
 
@@ -316,7 +316,7 @@ Trusted identity and scope come only from BeaconTrustedHostContext.
 - [x] **Step 1: Test tools, schemas, structured results, embedded A2UI, negotiated MCP Apps, invalid URIs, oversized resources, forbidden shell/SQL/filesystem tools, redaction, and confirmation-required results.**
 - [x] **Step 2: Map MCP tools into CapabilityManifest and the same policy/receipt path.** MCP resources cannot bypass native catalogs or action validation.
 - [x] **Step 3: Run Python and Swift suites.**
-- [ ] **Step 4: Commit with feat(mcp): adapt MCP tools and app resources.**
+- [x] **Step 4: Commit with feat(mcp): adapt MCP tools and app resources.**
 
 ## Milestone 4: JianHao integration
 
@@ -368,11 +368,11 @@ commit: consequential_write, before_commit, idempotency required, device
 - Modify: services/ai-gateway/tests/test_agent_runtime_v1.py
 - Create: services/ai-gateway/tests/test_beacon_host.py
 
-- [ ] **Step 1: Test effective registry, device-tool pause/resume, schema-valid observations, stable IDs, early events, and absence of server-synthesized health observations.**
-- [ ] **Step 2: Add the sibling Python package as a local editable dependency.** Copy no generic runtime module into JianHao.
-- [ ] **Step 3: Wire JianHao providers through beacon_host.py and keep old endpoints compatible through adapters.**
-- [ ] **Step 4: Run rtk python3 -m pytest services/ai-gateway/tests -q.**
-- [ ] **Step 5: Commit with feat(gateway): host BeaconAgentKit runtime.**
+- [x] **Step 1: Test effective registry, device-tool pause/resume, schema-valid observations, stable IDs, early events, and absence of server-synthesized health observations.**
+- [x] **Step 2: Add the sibling Python package as a local editable dependency.** Copy no generic runtime module into JianHao.
+- [x] **Step 3: Wire JianHao providers through beacon_host.py and keep old endpoints compatible through adapters.**
+- [x] **Step 4: Run rtk python3 -m pytest services/ai-gateway/tests -q.** Verified with the gateway's editable Python 3.14 environment: 282 passed; the machine `python3` remains 3.11 and is below the declared >=3.12 runtime gate.
+- [x] **Step 5: Commit with feat(gateway): host BeaconAgentKit runtime.**
 
 ### Task 16: Execute the training workflow through device-local tools
 
