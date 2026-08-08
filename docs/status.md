@@ -25,4 +25,10 @@ Completed through Task 19:
 - JianHao integration through a capability pack and device-local tool bridge for the streamed “安排一下明天练肩” workflow, including editable draft UI and tomorrow persistence.
 - Provider-neutral knowledge contracts and JianHao private-coach knowledge pack v1. The product pack uses reviewed original summaries of authoritative sources, requires resolved citations for evidence, rejects unsupported medical advice, and admits when reviewed evidence is missing.
 
-Current task: Task 20, evaluation, security documentation, CI, and a domain-neutral example.
+Task 20 also completed:
+
+- Deterministic evaluation reports now measure route recall, capability precision, unnecessary tool calls, clarification correctness, policy violations, completion correctness, surface fallback, and task success.
+- The repository includes a v0.2 threat model, security policy, contribution guide, keyless CI gates, and a domain-neutral two-tool device loop example.
+- Framework gate: 76 Python tests and 52 Swift tests passed on 2026-08-08.
+
+Current task: Task 21, complete integrated regression and evidence report.

@@ -458,11 +458,11 @@ commit: consequential_write, before_commit, idempotency required, device
 - Modify: docs/architecture.md
 - Modify: docs/status.md
 
-- [ ] **Step 1: Measure route recall, capability precision, unnecessary tool calls, clarification correctness, policy violations, completion, surface fallback, and task success.**
-- [ ] **Step 2: Document prompt injection, malicious manifests, identity spoofing, schema smuggling, MCP injection, replay, duplicate writes, sensitive logs, registry-key compromise, and unsafe knowledge.**
-- [ ] **Step 3: Run Python, Swift, schema, boundary, and fixture tests in CI without production keys.**
-- [ ] **Step 4: Add a domain-neutral local-task example with two tools, approval, surface patching, and idempotent commit.**
-- [ ] **Step 5: Run the complete framework gate and commit with docs: prepare BeaconAgentKit v0.2 for review.**
+- [x] **Step 1: Measure route recall, capability precision, unnecessary tool calls, clarification correctness, policy violations, completion, surface fallback, and task success.**
+- [x] **Step 2: Document prompt injection, malicious manifests, identity spoofing, schema smuggling, MCP injection, replay, duplicate writes, sensitive logs, registry-key compromise, and unsafe knowledge.**
+- [x] **Step 3: Run Python, Swift, schema, boundary, and fixture tests in CI without production keys.**
+- [x] **Step 4: Add a domain-neutral local-task example with two tools, approval, surface patching, and idempotent commit.**
+- [x] **Step 5: Run the complete framework gate and commit with docs: prepare BeaconAgentKit v0.2 for review.**
 
 ## Milestone 6: Integrated verification
 
