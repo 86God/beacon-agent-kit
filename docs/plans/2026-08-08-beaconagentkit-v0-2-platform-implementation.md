@@ -116,17 +116,17 @@ Agent events cover run, step, activity, text, tool, state, surface, approval, re
 - Create: Sources/BeaconAgentCore/BeaconAgentStateV2.swift
 - Create: Tests/BeaconAgentCoreTests/BeaconAgentV2ConformanceTests.swift
 
-- [ ] **Step 1: Create an ordered run fixture with run.started, activity snapshot/delta, tool lifecycle, surface patches, approval interrupt, receipt, and run.finished.**
-- [ ] **Step 2: Write Python and Swift tests that produce the same normalized terminal JSON.** Replay duplicates and out-of-order events.
-- [ ] **Step 3: Implement minimal reducers.** Sequence gaps buffer; duplicate IDs with different payloads fail closed; unknown namespaced events are preserved.
-- [ ] **Step 4: Run:**
+- [x] **Step 1: Create an ordered run fixture with run.started, activity snapshot/delta, tool lifecycle, surface patches, approval interrupt, receipt, and run.finished.**
+- [x] **Step 2: Write Python and Swift tests that produce the same normalized terminal JSON.** Replay duplicates and out-of-order events.
+- [x] **Step 3: Implement minimal reducers.** Sequence gaps buffer; duplicate IDs with different payloads fail closed; unknown namespaced events are preserved.
+- [x] **Step 4: Run:**
 
 ~~~bash
 rtk python3 -m pytest python/tests/test_conformance_replay.py -q
 rtk swift test --package-path /Users/zhanggengying/Documents/beacon-agent-kit
 ~~~
 
-- [ ] **Step 5: Commit with feat(protocol): add cross-language event conformance.**
+- [x] **Step 5: Commit with feat(protocol): add cross-language event conformance.**
 
 ## Milestone 2: Registry, routing, and Agent loop
 

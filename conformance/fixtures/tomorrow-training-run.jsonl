@@ -1,0 +1,14 @@
+{"schemaVersion":2,"eventId":"event-0","runId":"run-tomorrow","sequence":0,"type":"run.started","payload":{"threadId":"thread-1"}}
+{"schemaVersion":2,"eventId":"event-1","runId":"run-tomorrow","sequence":1,"type":"activity.snapshot","payload":{"activityId":"activity-context","title":"Reading local training context","status":"running","detail":"Target date 2026-08-09"}}
+{"schemaVersion":2,"eventId":"event-2","runId":"run-tomorrow","sequence":2,"type":"tool.start","payload":{"toolCallId":"tool-context","capabilityId":"training.context.read","executionLocation":"device"}}
+{"schemaVersion":2,"eventId":"event-3","runId":"run-tomorrow","sequence":3,"type":"tool.result","payload":{"toolCallId":"tool-context","result":{"targetDate":"2026-08-09","recentTrainingDays":2}}}
+{"schemaVersion":2,"eventId":"event-4","runId":"run-tomorrow","sequence":4,"type":"tool.end","payload":{"toolCallId":"tool-context","status":"completed"}}
+{"schemaVersion":2,"eventId":"event-5","runId":"run-tomorrow","sequence":5,"type":"activity.delta","payload":{"activityId":"activity-context","status":"completed","detail":"Local context ready"}}
+{"schemaVersion":2,"eventId":"event-6","runId":"run-tomorrow","sequence":6,"type":"surface.create","payload":{"surfaceId":"surface-plan","document":{"kind":"training.plan.draft","version":1,"title":"","targetDate":"2026-08-09","exercises":[]}}}
+{"schemaVersion":2,"eventId":"event-7","runId":"run-tomorrow","sequence":7,"type":"surface.patch","payload":{"surfaceId":"surface-plan","patch":[{"op":"replace","path":"/title","value":"Tomorrow shoulder training"},{"op":"add","path":"/exercises/-","value":{"id":"shoulder-press","sets":4,"reps":"8-10"}}]}}
+{"schemaVersion":2,"eventId":"event-8","runId":"run-tomorrow","sequence":8,"type":"surface.complete","payload":{"surfaceId":"surface-plan"}}
+{"schemaVersion":2,"eventId":"event-9","runId":"run-tomorrow","sequence":9,"type":"approval.requested","payload":{"approvalId":"approval-1","toolCallId":"tool-commit","summary":"Add the draft to 2026-08-09"}}
+{"schemaVersion":2,"eventId":"event-10","runId":"run-tomorrow","sequence":10,"type":"approval.resolved","payload":{"approvalId":"approval-1","decision":"approved"}}
+{"schemaVersion":2,"eventId":"event-11","runId":"run-tomorrow","sequence":11,"type":"receipt.committed","payload":{"receiptId":"receipt-1","capabilityId":"training.plan.commit","outcome":"committed","targetDate":"2026-08-09"}}
+{"schemaVersion":2,"eventId":"event-12","runId":"run-tomorrow","sequence":12,"type":"beacon.audit.note","payload":{"summary":"Device-local write verified"}}
+{"schemaVersion":2,"eventId":"event-13","runId":"run-tomorrow","sequence":13,"type":"run.finished","payload":{"status":"completed"}}

@@ -1,0 +1,8 @@
+{"schemaVersion":2,"eventId":"interrupt-0","runId":"run-interrupt","sequence":0,"type":"run.started","payload":{}}
+{"schemaVersion":2,"eventId":"interrupt-1","runId":"run-interrupt","sequence":1,"type":"tool.start","payload":{"toolCallId":"tool-write","capabilityId":"record.commit","executionLocation":"device"}}
+{"schemaVersion":2,"eventId":"interrupt-2","runId":"run-interrupt","sequence":2,"type":"run.interrupted","payload":{"reason":"approval_required"}}
+{"schemaVersion":2,"eventId":"interrupt-3","runId":"run-interrupt","sequence":3,"type":"approval.requested","payload":{"approvalId":"approval-write","toolCallId":"tool-write","summary":"Commit local record"}}
+{"schemaVersion":2,"eventId":"interrupt-4","runId":"run-interrupt","sequence":4,"type":"approval.resolved","payload":{"approvalId":"approval-write","decision":"approved"}}
+{"schemaVersion":2,"eventId":"interrupt-5","runId":"run-interrupt","sequence":5,"type":"tool.result","payload":{"toolCallId":"tool-write","result":{"recordId":"local-1"}}}
+{"schemaVersion":2,"eventId":"interrupt-6","runId":"run-interrupt","sequence":6,"type":"receipt.committed","payload":{"receiptId":"receipt-write","capabilityId":"record.commit","outcome":"committed"}}
+{"schemaVersion":2,"eventId":"interrupt-7","runId":"run-interrupt","sequence":7,"type":"run.finished","payload":{"status":"completed"}}

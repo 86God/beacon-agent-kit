@@ -44,7 +44,7 @@ class AgentEvent(BaseModel):
     event_id: str = Field(alias="eventId")
     run_id: str = Field(alias="runId")
     sequence: int = Field(ge=0)
-    type: AgentEventType
+    type: AgentEventType | str
     payload: dict[str, Any]
 
     @field_validator("event_id", "run_id")

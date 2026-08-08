@@ -1,0 +1,6 @@
+{"schemaVersion":2,"eventId":"surface-0","runId":"run-surface","sequence":0,"type":"run.started","payload":{}}
+{"schemaVersion":2,"eventId":"surface-1","runId":"run-surface","sequence":1,"type":"surface.create","payload":{"surfaceId":"surface-1","document":{"kind":"list","title":"","items":[]}}}
+{"schemaVersion":2,"eventId":"surface-2","runId":"run-surface","sequence":2,"type":"surface.patch","payload":{"surfaceId":"surface-1","patch":[{"op":"replace","path":"/title","value":"Local records"}]}}
+{"schemaVersion":2,"eventId":"surface-3","runId":"run-surface","sequence":3,"type":"surface.patch","payload":{"surfaceId":"surface-1","patch":[{"op":"add","path":"/items/-","value":{"id":"record-1","title":"Shoulder training"}}]}}
+{"schemaVersion":2,"eventId":"surface-4","runId":"run-surface","sequence":4,"type":"surface.complete","payload":{"surfaceId":"surface-1"}}
+{"schemaVersion":2,"eventId":"surface-5","runId":"run-surface","sequence":5,"type":"run.finished","payload":{"status":"completed"}}
