@@ -296,10 +296,10 @@ Trusted identity and scope come only from BeaconTrustedHostContext.
 - Create: Tests/BeaconAgentSwiftUITests/BeaconIncrementalMarkdownTests.swift
 - Modify: Package.swift
 
-- [ ] **Step 1: Port JianHao tests for headings, lists, code fences, tables, emphasis, links, Chinese punctuation, and incomplete trailing blocks.**
-- [ ] **Step 2: Render completed blocks immediately and only the incomplete tail provisionally.** Finalization must not restyle completed blocks.
-- [ ] **Step 3: Render activity/tool rows in place using redacted summaries.**
-- [ ] **Step 4: Run full Swift tests and an iOS Simulator package build.**
+- [x] **Step 1: Port JianHao tests for headings, lists, code fences, tables, emphasis, links, Chinese punctuation, and incomplete trailing blocks.**
+- [x] **Step 2: Render completed blocks immediately and only the incomplete tail provisionally.** Finalization must not restyle completed blocks.
+- [x] **Step 3: Render activity/tool rows in place using redacted summaries.**
+- [x] **Step 4: Run full Swift tests and an iOS Simulator package build.**
 - [ ] **Step 5: Commit with feat(ui): add progressive markdown and agent activity views.**
 
 ### Task 12: Add MCP and MCP Apps adapters

@@ -27,7 +27,8 @@ Updated: 2026-08-08
 - Task 8 implementation: Foundation-only device bridge with trusted host context, account/scope/confirmation checks, request and result validation, in-flight exclusion, and completed idempotency replay. Full Swift suite passes 18 XCTest tests plus 10 Swift Testing tests.
 - Task 9 implementation: byte-safe SSE parsing, CRLF/LF and multiline support, V2 decoding, resume headers, duplicate/gap handling, typed URLSession streaming, and exact Markdown whitespace preservation. Full Swift suite passes 18 XCTest tests plus 13 Swift Testing tests.
 - Task 10 implementation: Foundation A2UI models/validator/store, atomic revisions and snapshot recovery, trusted-identity rejection, safe action catalog, and generic SwiftUI renderers with disabled unknown fallback. Full Swift suite passes 18 XCTest tests plus 17 Swift Testing tests.
+- Task 11 implementation: progressive Markdown commits stable blocks during streaming, keeps only an incomplete tail provisional, renders code/tables/dividers, and shows redacted in-place activity rows. Full Swift suite passes 18 XCTest tests plus 23 Swift Testing tests; the package builds for iPhone 17 on iOS Simulator 26.5.
 
 ## Current
 
-- Task 11: Progressive Markdown and activity UI.
+- Task 12: MCP and MCP Apps adapters.
