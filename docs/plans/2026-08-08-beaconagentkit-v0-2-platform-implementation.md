@@ -352,11 +352,11 @@ commit: consequential_write, before_commit, idempotency required, device
 - Modify: ios/JianHaoPoC/JianHaoPoC/AICapability/CapabilityKernel.swift
 - Test: existing AgentRuntime, AGUI, A2UI, IncrementalMarkdown, CapabilityKernel, and ToolContract tests
 
-- [ ] **Step 1: Add local package products BeaconAgentCore, AGUI, A2UI, Device, MCP, and SwiftUI.**
-- [ ] **Step 2: Replace generic event, reducer, SSE, A2UI, Markdown, registry, and lifecycle ownership with imports or thin adapters.**
-- [ ] **Step 3: Keep FoodPhotoEstimate, ExerciseRecordEstimate, training workflow/persistence, domain cards, and local handlers in JianHao.**
-- [ ] **Step 4: Run focused tests before and after removing proven duplicates.**
-- [ ] **Step 5: Commit only intended package, adapter, removed-source, and test files with refactor(ai): consume BeaconAgentKit runtime and UI.**
+- [x] **Step 1: Add local package products BeaconAgentCore, AGUI, A2UI, Device, MCP, and SwiftUI.**
+- [x] **Step 2: Replace generic event, reducer, SSE, A2UI, Markdown, registry, and lifecycle ownership with imports or thin adapters.**
+- [x] **Step 3: Keep FoodPhotoEstimate, ExerciseRecordEstimate, training workflow/persistence, domain cards, and local handlers in JianHao.**
+- [x] **Step 4: Run focused tests before and after removing proven duplicates.**
+- [x] **Step 5: Commit only intended package, adapter, removed-source, and test files with refactor(ai): consume BeaconAgentKit runtime and UI.**
 
 ### Task 15: Host the runtime in the JianHao gateway
 
