@@ -263,11 +263,11 @@ Trusted identity and scope come only from BeaconTrustedHostContext.
 - Create: Sources/BeaconAgentAGUI/BeaconAGUIResumeCursor.swift
 - Create: Tests/BeaconAgentAGUITests/BeaconAGUIStreamingTests.swift
 
-- [ ] **Step 1: Port generic JianHao SSE tests for split chunks, CRLF/LF, multiline data, IDs, reconnect headers, duplicates, gaps, and Markdown whitespace.**
-- [ ] **Step 2: Implement URLSession AsyncSequence streaming and typed failures.** Never trim text deltas.
-- [ ] **Step 3: Assert concatenated deltas exactly equal finalText.**
-- [ ] **Step 4: Run focused and full Swift tests.**
-- [ ] **Step 5: Commit with feat(agui): stream and resume agent events.**
+- [x] **Step 1: Port generic JianHao SSE tests for split chunks, CRLF/LF, multiline data, IDs, reconnect headers, duplicates, gaps, and Markdown whitespace.**
+- [x] **Step 2: Implement URLSession AsyncSequence streaming and typed failures.** Never trim text deltas.
+- [x] **Step 3: Assert concatenated deltas exactly equal finalText.**
+- [x] **Step 4: Run focused and full Swift tests.**
+- [x] **Step 5: Commit with feat(agui): stream and resume agent events.**
 
 ### Task 10: Add A2UI runtime and renderer catalogs
 

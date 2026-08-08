@@ -17,7 +17,7 @@ public enum BeaconJSONValue: Codable, Equatable, Sendable {
         } else if let value = try? container.decode(Double.self) {
             self = .number(value)
         } else if let value = try? container.decode(String.self) {
-            self = .string(BeaconRedactor.displayText(value))
+            self = .string(BeaconRedactor.redactedText(value))
         } else if let value = try? container.decode([String: BeaconJSONValue].self) {
             self = .object(value)
         } else {
@@ -29,7 +29,7 @@ public enum BeaconJSONValue: Codable, Equatable, Sendable {
         var container = encoder.singleValueContainer()
         switch self {
         case let .string(value):
-            try container.encode(BeaconRedactor.displayText(value))
+            try container.encode(BeaconRedactor.redactedText(value))
         case let .number(value):
             try container.encode(value)
         case let .bool(value):

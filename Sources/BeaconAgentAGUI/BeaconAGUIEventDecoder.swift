@@ -13,4 +13,11 @@ public enum BeaconAGUIEventDecoder {
                 try decoder.decode(BeaconAgentEvent.self, from: Data(line.utf8))
             }
     }
+
+    public static func decodeV2Event(
+        _ text: String,
+        decoder: JSONDecoder = JSONDecoder()
+    ) throws -> BeaconAgentEventV2 {
+        try decoder.decode(BeaconAgentEventV2.self, from: Data(text.utf8))
+    }
 }
