@@ -420,11 +420,11 @@ commit: consequential_write, before_commit, idempotency required, device
 - Create: Sources/BeaconAgentCore/BeaconKnowledgeManifest.swift
 - Create: Tests/BeaconAgentCoreTests/BeaconKnowledgeManifestTests.swift
 
-- [ ] **Step 1: Reject missing source ID, URL, reuse status, locale, version, and citation policy.**
-- [ ] **Step 2: Require evidence-marked answers to cite a retrieved passage.**
-- [ ] **Step 3: Implement provider-neutral corpus, query, passage, citation, and retriever models.**
-- [ ] **Step 4: Run Python and Swift suites.**
-- [ ] **Step 5: Commit with feat(knowledge): define cited knowledge-pack contracts.**
+- [x] **Step 1: Reject missing source ID, URL, reuse status, locale, version, and citation policy.**
+- [x] **Step 2: Require evidence-marked answers to cite a retrieved passage.**
+- [x] **Step 3: Implement provider-neutral corpus, query, passage, citation, and retriever models.**
+- [x] **Step 4: Run Python and Swift suites.**
+- [x] **Step 5: Commit with feat(knowledge): define cited knowledge-pack contracts.**
 
 ### Task 19: Build JianHao private-coach knowledge pack v1
 

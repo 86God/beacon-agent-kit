@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beaconagentkit.dev/specs/knowledge-manifest.schema.json",
+  "title": "Beacon Knowledge Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "locale",
+    "domain",
+    "sources",
+    "retrievalAdapter",
+    "chunkSchema",
+    "citationPolicy",
+    "safetyDisclaimers",
+    "excludedAdviceCategories",
+    "evaluationDatasetVersion",
+    "reviewExpiresAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "locale": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+    },
+    "domain": { "type": "string", "minLength": 1 },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "retrievalAdapter": { "type": "string", "minLength": 1 },
+    "chunkSchema": { "type": "object", "minProperties": 1 },
+    "citationPolicy": {
+      "enum": ["required_for_evidence", "always", "optional"]
+    },
+    "safetyDisclaimers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "excludedAdviceCategories": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "evaluationDatasetVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "reviewExpiresAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "publisher", "url", "reuseStatus", "reviewedAt"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "publisher": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri", "minLength": 1 },
+        "reuseStatus": {
+          "enum": ["permitted", "original_summary_only", "review_required", "prohibited"]
+        },
+        "reviewedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
