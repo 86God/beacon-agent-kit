@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "beacon-agent-runtime"
+version = "0.2.0a1"
+description = "Protocol-first reference runtime for BeaconAgentKit."
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography>=43,<46",
+    "fastapi>=0.115,<1",
+    "httpx>=0.27,<1",
+    "jsonschema>=4.23,<5",
+    "pydantic>=2.8,<3",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
+
+[tool.setuptools.packages.find]
+include = ["beacon_agent_runtime*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+

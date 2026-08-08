@@ -26,11 +26,11 @@ Product repository:
 integration branch: codex/beacon-agent-v0-2-integration
 ~~~
 
-- [ ] Run rtk git status --short --branch and rtk git log -5 --oneline --decorate in both repositories.
-- [ ] Preserve every pre-existing JianHao change. Do not stash, reset, clean, or commit unrelated UI assets and nutrition edits.
-- [ ] Create codex/beacon-agent-v0-2 from the current BeaconAgentKit main.
-- [ ] If JianHao is dirty, create an isolated integration worktree from the current committed codex/open-agent-ui-stack HEAD.
-- [ ] Record starting commits in docs/status-v0.2.md.
+- [x] Run rtk git status --short --branch and rtk git log -5 --oneline --decorate in both repositories.
+- [x] Preserve every pre-existing JianHao change. Do not stash, reset, clean, or commit unrelated UI assets and nutrition edits.
+- [x] Create codex/beacon-agent-v0-2 from the current BeaconAgentKit main.
+- [x] If JianHao is dirty, create an isolated integration worktree from the current committed codex/open-agent-ui-stack HEAD.
+- [x] Record starting commits in docs/status-v0.2.md.
 - [ ] Establish baselines with rtk swift test --package-path /Users/zhanggengying/Documents/beacon-agent-kit, rtk python3 -m pytest services/ai-gateway/tests -q, and the focused JianHao Agent/Assistant XCTest suite.
 - [ ] Do not push, tag, publish, deploy, or merge into a dirty checkout until all gates pass and the user approves the external action.
 
@@ -54,7 +54,7 @@ Capability manifests are declarations and never downloaded executable code.
 - Create: python/beacon_agent_runtime/protocol.py
 - Create: python/tests/test_protocol.py
 
-- [ ] **Step 1: Write the failing round-trip test**
+- [x] **Step 1: Write the failing round-trip test**
 
 ~~~python
 from beacon_agent_runtime.protocol import AgentEvent, AgentEventType
@@ -71,10 +71,10 @@ def test_agent_event_round_trips() -> None:
     assert AgentEvent.model_validate_json(event.model_dump_json()) == event
 ~~~
 
-- [ ] **Step 2: Run rtk python3 -m pytest python/tests/test_protocol.py -q and verify collection fails because the module is missing.**
-- [ ] **Step 3: Add Python >=3.12 metadata and Pydantic models.** Declare Pydantic, jsonschema, cryptography, FastAPI, httpx, and pytest with bounded major versions. AgentEvent is frozen, validates positive schemaVersion, non-empty IDs, and non-negative sequence. Install the editable test environment with rtk python3 -m pip install -e 'python[test]'.
-- [ ] **Step 4: Rerun the test and expect 1 passed.**
-- [ ] **Step 5: Commit with feat(runtime): scaffold Python protocol package.**
+- [x] **Step 2: Run rtk python3 -m pytest python/tests/test_protocol.py -q and verify collection fails because the module is missing.**
+- [ ] **Step 3: Add Python >=3.12 metadata and Pydantic models.** Declare Pydantic, jsonschema, cryptography, FastAPI, httpx, and pytest with bounded major versions. AgentEvent is frozen, validates positive schemaVersion, non-empty IDs, and non-negative sequence. Install the editable test environment with rtk python3 -m pip install -e 'python[test]'. (Models and metadata are complete; editable Python 3.12 environment verification is still pending.)
+- [x] **Step 4: Rerun the test and expect 1 passed.**
+- [x] **Step 5: Commit with feat(runtime): scaffold Python protocol package.**
 
 ### Task 2: Define language-neutral schemas
 
