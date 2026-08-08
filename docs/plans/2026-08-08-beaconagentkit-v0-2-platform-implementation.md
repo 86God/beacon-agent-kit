@@ -403,11 +403,11 @@ commit: consequential_write, before_commit, idempotency required, device
 - Modify: ios/JianHaoPoC/JianHaoPoCTests/A2UIRendererTests.swift
 - Create: ios/JianHaoPoC/JianHaoPoCUITests/AITrainingAgentFlowUITests.swift
 
-- [ ] **Step 1: Test in-place activity transitions: querying training, equipment, candidates, and draft.**
-- [ ] **Step 2: Register training.plan.draft@1 as a JianHao renderer.** It appears at surface start, patches in place, supports edit/replace/reorder, preserves date, and disables commit while writing.
-- [ ] **Step 3: Use BeaconAgentMessageView and BeaconAgentActivityView for generic content.** Never fall back to a Markdown table when the catalog is present.
-- [ ] **Step 4: Run the complete iOS Simulator test suite and capture approved light/dark evidence.**
-- [ ] **Step 5: Commit with feat(ai-ui): stream agent activity and training surfaces.**
+- [x] **Step 1: Test in-place activity transitions: querying training, equipment, candidates, and draft.**
+- [x] **Step 2: Register training.plan.draft@1 as a JianHao renderer.** It appears at surface start, patches in place, supports edit/replace/reorder, preserves date, and disables commit while writing.
+- [x] **Step 3: Use BeaconAgentMessageView and BeaconAgentActivityView for generic content.** Never fall back to a Markdown table when the catalog is present.
+- [x] **Step 4: Run the complete iOS Simulator test suite and capture approved light/dark evidence.**
+- [x] **Step 5: Commit with feat(ai-ui): stream agent activity and training surfaces.**
 
 ## Milestone 5: Knowledge, evaluation, and release readiness
 
