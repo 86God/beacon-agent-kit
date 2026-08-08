@@ -238,9 +238,9 @@ Assert every tool follows the prior observation and events arrive before run com
 - Create: Sources/BeaconAgentDevice/BeaconDevicePolicy.swift
 - Create: Tests/BeaconAgentDeviceTests/BeaconDeviceToolDispatcherTests.swift
 
-- [ ] **Step 1: Test disabled, incompatible, missing-scope, wrong-account, unconfirmed, expired, duplicate-in-flight, invalid-schema, and completed-idempotency cases.**
-- [ ] **Step 2: Add a Foundation-only BeaconAgentDevice target.**
-- [ ] **Step 3: Implement the handler contract:**
+- [x] **Step 1: Test disabled, incompatible, missing-scope, wrong-account, unconfirmed, expired, duplicate-in-flight, invalid-schema, and completed-idempotency cases.**
+- [x] **Step 2: Add a Foundation-only BeaconAgentDevice target.**
+- [x] **Step 3: Implement the handler contract:**
 
 ~~~swift
 public protocol BeaconDeviceToolHandler: Sendable {
@@ -251,8 +251,8 @@ public protocol BeaconDeviceToolHandler: Sendable {
 
 Trusted identity and scope come only from BeaconTrustedHostContext.
 
-- [ ] **Step 4: Run the full Swift package suite.**
-- [ ] **Step 5: Commit with feat(device): add local capability execution bridge.**
+- [x] **Step 4: Run the full Swift package suite.**
+- [x] **Step 5: Commit with feat(device): add local capability execution bridge.**
 
 ### Task 9: Upgrade AG-UI streaming and resume
 
