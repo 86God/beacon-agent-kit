@@ -23,7 +23,8 @@ Updated: 2026-08-08
 - Task 4 implementation: immutable manifests, canonical hashes, effective-registry intersection, expiry/duplicate/cycle rejection, and Swift fixture decoding. Python suite passes 39 tests; Swift suite passes 18 XCTest tests plus 6 Swift Testing tests.
 - Task 5 implementation: Ed25519 snapshot signing, tamper rejection, injected reference control plane, strict state endpoint, and OpenAPI documentation. Python suite passes 42 tests.
 - Task 6 implementation: staged routing with host-resolved dates, workflow/approval continuation, effective-registry constraints, consequential clarification, and manifest-only offline fallback. Python suite passes 48 tests.
+- Task 7 implementation: bounded model-tool loop, ordered events, safe retries, schema/policy enforcement, checkpoint resume, approval interrupt, and idempotent write replay. Python suite passes 55 tests; Swift suite remains green.
 
 ## Current
 
-- Task 7: Bounded iterative Agent runtime.
+- Task 8: Swift device execution contracts.

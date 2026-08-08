@@ -207,7 +207,7 @@ Unknown IDs return 404, invalid manifests return 422, state changes increment re
 - Create: python/tests/test_agent_loop.py
 - Create: python/tests/test_agent_recovery.py
 
-- [ ] **Step 1: Use a fake model to test this sequence:**
+- [x] **Step 1: Use a fake model to test this sequence:**
 
 ~~~text
 request training.context.read
@@ -221,10 +221,10 @@ request approval interrupt
 
 Assert every tool follows the prior observation and events arrive before run completion.
 
-- [ ] **Step 2: Test step/tool/retry limits, observation size, invalid schemas, unknown tools, policy denial, checkpoint resume, and idempotent write retry.**
-- [ ] **Step 3: Implement the loop through ModelProvider, ToolDispatcher, CheckpointStore, PolicyEngine, EventSink, and RegistryProvider protocols.** Emit safe activity summaries, never raw chain-of-thought.
-- [ ] **Step 4: Run both runtime test files.**
-- [ ] **Step 5: Commit with feat(runtime): execute bounded resumable agent loops.**
+- [x] **Step 2: Test step/tool/retry limits, observation size, invalid schemas, unknown tools, policy denial, checkpoint resume, and idempotent write retry.**
+- [x] **Step 3: Implement the loop through ModelProvider, ToolDispatcher, CheckpointStore, PolicyEngine, EventSink, and RegistryProvider protocols.** Emit safe activity summaries, never raw chain-of-thought.
+- [x] **Step 4: Run both runtime test files.**
+- [x] **Step 5: Commit with feat(runtime): execute bounded resumable agent loops.**
 
 ## Milestone 3: Swift device bridge and streaming UI
 
