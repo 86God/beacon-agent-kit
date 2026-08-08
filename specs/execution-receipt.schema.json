@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beaconagentkit.dev/schemas/v0.2/execution-receipt.schema.json",
+  "title": "Beacon Execution Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "runId",
+    "toolCallId",
+    "capabilityId",
+    "outcome",
+    "committedAt",
+    "idempotencyKey",
+    "redactedResult"
+  ],
+  "properties": {
+    "schemaVersion": {"type": "integer", "minimum": 1},
+    "receiptId": {"type": "string", "minLength": 1},
+    "runId": {"type": "string", "minLength": 1},
+    "toolCallId": {"type": "string", "minLength": 1},
+    "capabilityId": {"type": "string", "minLength": 1},
+    "outcome": {"enum": ["committed", "rejected"]},
+    "committedAt": {"type": "string", "format": "date-time"},
+    "idempotencyKey": {"type": "string", "minLength": 1},
+    "redactedResult": {"type": "object"},
+    "errorCode": {"type": ["string", "null"], "minLength": 1}
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beaconagentkit.dev/schemas/v0.2/route-decision.schema.json",
+  "title": "Beacon Route Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "registryRevision",
+    "candidateIds",
+    "selectedIds",
+    "confidence",
+    "safeReasons",
+    "requiredClarification",
+    "plannerAction"
+  ],
+  "properties": {
+    "schemaVersion": {"type": "integer", "minimum": 1},
+    "runId": {"type": "string", "minLength": 1},
+    "registryRevision": {"type": "string", "minLength": 1},
+    "candidateIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "selectedIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "safeReasons": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "requiredClarification": {"type": ["string", "null"], "minLength": 1},
+    "plannerAction": {"enum": ["direct_answer", "tool", "workflow", "clarify"]},
+    "specialistId": {"type": ["string", "null"], "minLength": 1}
+  }
+}

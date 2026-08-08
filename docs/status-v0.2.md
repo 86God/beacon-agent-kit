@@ -18,8 +18,9 @@ Updated: 2026-08-08
 ## Completed
 
 - Task 1 implementation: Python reference package scaffold and versioned event envelope; source tests pass under Python 3.11.
+- Task 2 implementation: six closed JSON Schema 2020-12 wire contracts; 18 schema tests pass under Python 3.11.
 
 ## Current
 
 - Task 1 environment gate: editable install and verification under Python 3.12.
-- Task 2: Language-neutral JSON schemas.
+- Task 3: Cross-language conformance fixtures and reducers.

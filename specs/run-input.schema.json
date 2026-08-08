@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beaconagentkit.dev/schemas/v0.2/run-input.schema.json",
+  "title": "Beacon Agent Run Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "threadId", "message", "registryRevision", "clientContext"],
+  "properties": {
+    "schemaVersion": {"type": "integer", "minimum": 1},
+    "runId": {"type": "string", "minLength": 1},
+    "threadId": {"type": "string", "minLength": 1},
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "content"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "role": {"const": "user"},
+        "content": {"type": "string", "minLength": 1},
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "mediaType"],
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "mediaType": {"type": "string", "minLength": 1},
+              "redactedMetadata": {"type": "object"}
+            }
+          }
+        }
+      }
+    },
+    "registryRevision": {"type": "string", "minLength": 1},
+    "resumeToken": {"type": ["string", "null"], "minLength": 1},
+    "clientContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locale", "timeZone", "currentDate"],
+      "properties": {
+        "locale": {"type": "string", "minLength": 1},
+        "timeZone": {"type": "string", "minLength": 1},
+        "currentDate": {"type": "string", "format": "date"},
+        "supportedProtocolVersions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 1}
+        },
+        "supportedSurfaceVersions": {
+          "type": "object",
+          "additionalProperties": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

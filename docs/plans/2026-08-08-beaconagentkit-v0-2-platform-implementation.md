@@ -87,9 +87,9 @@ def test_agent_event_round_trips() -> None:
 - Create: specs/execution-receipt.schema.json
 - Create: python/tests/test_schemas.py
 
-- [ ] **Step 1: Test every schema with Draft202012Validator.check_schema.** Add valid fixtures and reject invalid capability versions, empty scopes, unsupported execution locations, unknown required fields, and model-supplied trusted identity fields.
-- [ ] **Step 2: Run the tests and verify missing-schema failures.**
-- [ ] **Step 3: Implement closed JSON Schema 2020-12 contracts.** Encode these stable enums:
+- [x] **Step 1: Test every schema with Draft202012Validator.check_schema.** Add valid fixtures and reject invalid capability versions, empty scopes, unsupported execution locations, unknown required fields, and model-supplied trusted identity fields.
+- [x] **Step 2: Run the tests and verify missing-schema failures.**
+- [x] **Step 3: Implement closed JSON Schema 2020-12 contracts.** Encode these stable enums:
 
 ~~~text
 CapabilityKind: tool | skill | workflow | knowledge | surface
@@ -101,8 +101,8 @@ Idempotency: none | optional | required
 
 Agent events cover run, step, activity, text, tool, state, surface, approval, receipt, and error families. Namespaced custom events retain their payload.
 
-- [ ] **Step 4: Run pytest, python3 -m json.tool on every schema, and rtk git diff --check.**
-- [ ] **Step 5: Commit with feat(protocol): define v0.2 wire schemas.**
+- [x] **Step 4: Run pytest, python3 -m json.tool on every schema, and rtk git diff --check.**
+- [x] **Step 5: Commit with feat(protocol): define v0.2 wire schemas.**
 
 ### Task 3: Add cross-language conformance
 
