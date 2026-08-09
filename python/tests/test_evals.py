@@ -1,9 +1,12 @@
 """Deterministic regression metrics for routing, tools, policy, and surfaces."""
 
 from beacon_agent_runtime.evals import (
+    AgentConformanceObservation,
     AgentEvaluationCase,
     AgentEvaluationObservation,
     evaluate_agent_runs,
+    evaluate_conformance_cases,
+    load_conformance_cases,
 )
 
 
@@ -185,3 +188,62 @@ def test_evaluation_rejects_invalid_negative_counts_and_duplicate_ids() -> None:
         raise AssertionError("duplicate capability IDs should fail")
     except ValueError as error:
         assert "duplicate expected capability" in str(error)
+
+
+def test_jianhao_migration_fixture_requires_real_local_tool_event_order() -> None:
+    cases = load_conformance_cases("conformance/fixtures/jianhao-agent-migration.jsonl")
+
+    assert {case.id for case in cases} == {
+        "training-cross-date",
+        "nutrition-summary",
+        "nutrition-photo-review",
+        "profile-query",
+        "recovery-permission-unavailable",
+        "cancelled-run",
+        "tool-failure-reconnect",
+    }
+    training = next(case for case in cases if case.id == "training-cross-date")
+    assert training.expected_tool_capability_ids == (
+        "training.context.read",
+        "exercise.candidates.search",
+        "training.plan.draft",
+        "training.plan.commit",
+    )
+    assert training.expected_surface_kind == "trainingPlanDraft"
+    assert training.expects_receipt is True
+    assert training.requires_device_private_data is True
+
+    observations = tuple(
+        AgentConformanceObservation(
+            case_id=case.id,
+            event_types=case.expected_event_types,
+            tool_capability_ids=case.expected_tool_capability_ids,
+            surface_kind=case.expected_surface_kind,
+            receipt_created=case.expects_receipt,
+            run_state=case.expected_run_state,
+            remote_personal_data_sent=False,
+        )
+        for case in cases
+    )
+
+    report = evaluate_conformance_cases(cases, observations)
+
+    assert report.case_count == len(cases)
+    assert report.failed_case_ids == ()
+
+
+def test_conformance_fails_closed_when_event_order_or_local_data_boundary_drifts() -> None:
+    case = load_conformance_cases("conformance/fixtures/jianhao-agent-migration.jsonl")[0]
+    observation = AgentConformanceObservation(
+        case_id=case.id,
+        event_types=tuple(reversed(case.expected_event_types)),
+        tool_capability_ids=case.expected_tool_capability_ids,
+        surface_kind=case.expected_surface_kind,
+        receipt_created=case.expects_receipt,
+        run_state=case.expected_run_state,
+        remote_personal_data_sent=True,
+    )
+
+    report = evaluate_conformance_cases((case,), (observation,))
+
+    assert report.failed_case_ids == (case.id,)
