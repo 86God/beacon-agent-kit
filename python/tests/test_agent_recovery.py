@@ -238,6 +238,7 @@ def test_device_tool_interrupt_resumes_with_schema_valid_local_observation() -> 
         "expiresAt": request["expiresAt"],
     }
     assert request["expiresAt"].endswith("Z")
+    assert sink.events[2].payload["arguments"] == {}
     assert sink.events[5].payload["result"] == {"recordId": "iphone-local-1"}
 
 

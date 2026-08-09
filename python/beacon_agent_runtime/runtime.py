@@ -348,6 +348,7 @@ class AgentRuntime:
                 "toolCallId": action.tool_call_id,
                 "capabilityId": action.capability_id,
                 "executionLocation": str(manifest.execution_location),
+                "arguments": action.arguments,
             },
         )
         observation = (
@@ -397,6 +398,7 @@ class AgentRuntime:
                 "capabilityId": action.capability_id,
                 "executionLocation": "device",
                 "requestedScopes": list(action.requested_scopes),
+                "arguments": action.arguments,
             },
         )
         replay = (
