@@ -17,6 +17,13 @@ public struct BeaconDeviceCapabilityAdvertisement: Codable, Equatable, Sendable 
         self.supportedSchemaVersions = supportedSchemaVersions
         self.enabled = enabled
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case capabilityID = "capabilityId"
+        case version
+        case supportedSchemaVersions
+        case enabled
+    }
 }
 
 public struct BeaconTrustedHostContext: Equatable, Sendable {

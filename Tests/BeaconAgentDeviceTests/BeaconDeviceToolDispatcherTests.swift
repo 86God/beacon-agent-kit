@@ -4,6 +4,24 @@ import BeaconAgentCore
 @testable import BeaconAgentDevice
 
 struct BeaconDeviceToolDispatcherTests {
+    @Test
+    func capabilityAdvertisementUsesProtocolFieldNames() throws {
+        let advertisement = BeaconDeviceCapabilityAdvertisement(
+            capabilityID: "profile.read",
+            version: "1.0.0",
+            supportedSchemaVersions: [2],
+            enabled: true
+        )
+
+        let document = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(advertisement)
+        ) as? [String: Any]
+
+        #expect(document?["capabilityId"] as? String == "profile.read")
+        #expect(document?["capabilityID"] == nil)
+        #expect(document?["supportedSchemaVersions"] as? [Int] == [2])
+    }
+
     @Test(arguments: [
         FailureCase.disabled,
         .incompatible,
