@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Iterable, Protocol
 
 from .protocol import AgentEvent, AgentEventType
 
@@ -30,6 +30,17 @@ class ApprovalInterruptAction:
 @dataclass(frozen=True)
 class FinishAction:
     text: str
+
+
+@dataclass(frozen=True)
+class StreamingFinishAction:
+    """A provider-owned live text stream for the final assistant answer.
+
+    The runtime deliberately owns event emission so each upstream chunk becomes a
+    verifiable ``text.delta`` event instead of a UI-only typing simulation.
+    """
+
+    chunks: Iterable[str]
 
 
 @dataclass(frozen=True)

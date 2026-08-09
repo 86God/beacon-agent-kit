@@ -15,6 +15,7 @@ from beacon_agent_runtime.runtime import (
     ApprovalInterruptAction,
     FinishAction,
     RunContext,
+    StreamingFinishAction,
     StaticRegistryProvider,
     ToolObservation,
     ToolRequestAction,
@@ -243,6 +244,34 @@ def test_step_and_tool_limits_are_enforced() -> None:
         )
         result = agent.start(run_id=f"run-{expected}", query="test", authorized_scopes={"training.read"})
         assert result.error_code == expected
+
+
+def test_agent_emits_streamed_markdown_deltas_without_collapsing_whitespace() -> None:
+    streamed = iter(["## 明天肩部训练\n\n", "- 杠铃推举\n", "- 侧平举\n"])
+    agent, sink = runtime(
+        model=ScriptedModel([StreamingFinishAction(streamed)]),
+        dispatcher=RecordingDispatcher({}),
+        manifests=(),
+    )
+
+    result = agent.start(
+        run_id="run-streamed-markdown",
+        query="安排明天练肩",
+        authorized_scopes=set(),
+    )
+
+    deltas = [
+        event.payload["delta"]
+        for event in sink.events
+        if str(event.type) == "text.delta"
+    ]
+    assert deltas == ["## 明天肩部训练\n\n", "- 杠铃推举\n", "- 侧平举\n"]
+    assert result.final_text == "".join(deltas)
+    assert next(
+        event.payload["finalText"]
+        for event in sink.events
+        if str(event.type) == "text.end"
+    ) == result.final_text
 
 
 def test_invalid_output_schema_fails_closed() -> None:

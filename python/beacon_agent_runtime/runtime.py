@@ -17,6 +17,7 @@ from .events import (
     EventSink,
     FinishAction,
     RunContext,
+    StreamingFinishAction,
     ToolObservation,
     ToolRequestAction,
 )
@@ -29,7 +30,7 @@ class ModelProvider(Protocol):
     def next_action(
         self,
         context: RunContext,
-    ) -> ToolRequestAction | ApprovalInterruptAction | FinishAction: ...
+    ) -> ToolRequestAction | ApprovalInterruptAction | FinishAction | StreamingFinishAction: ...
 
 
 class ToolDispatcher(Protocol):
@@ -258,20 +259,9 @@ class AgentRuntime:
                     self._save(checkpoint, emitter)
                     return AgentRunResult(checkpoint.run_id, "interrupted")
                 if isinstance(action, FinishAction):
-                    message_id = f"{checkpoint.run_id}:final"
-                    emitter.emit(AgentEventType.TEXT_START, {"messageId": message_id})
-                    emitter.emit(
-                        AgentEventType.TEXT_DELTA,
-                        {"messageId": message_id, "delta": action.text},
-                    )
-                    emitter.emit(
-                        AgentEventType.TEXT_END,
-                        {"messageId": message_id, "finalText": action.text},
-                    )
-                    emitter.emit(AgentEventType.STEP_FINISHED, {"step": checkpoint.steps})
-                    emitter.emit(AgentEventType.RUN_FINISHED, {"status": "completed"})
-                    self._save(checkpoint, emitter)
-                    return AgentRunResult(checkpoint.run_id, "finished", final_text=action.text)
+                    return self._finish_text((action.text,), checkpoint, emitter)
+                if isinstance(action, StreamingFinishAction):
+                    return self._finish_text(action.chunks, checkpoint, emitter)
                 raise RuntimeFailure("invalid_model_action", "Model returned an unsupported action")
         except RuntimeFailure as failure:
             emitter.emit(
@@ -280,6 +270,40 @@ class AgentRuntime:
             )
             self._save(checkpoint, emitter)
             return AgentRunResult(checkpoint.run_id, "error", error_code=failure.code)
+
+    def _finish_text(
+        self,
+        chunks: Any,
+        checkpoint: RuntimeCheckpoint,
+        emitter: AgentEventEmitter,
+    ) -> AgentRunResult:
+        message_id = f"{checkpoint.run_id}:final"
+        emitter.emit(AgentEventType.TEXT_START, {"messageId": message_id})
+        collected: list[str] = []
+        try:
+            for delta in chunks:
+                if not isinstance(delta, str):
+                    raise RuntimeFailure("invalid_model_stream", "Model stream returned a non-text delta")
+                if not delta:
+                    continue
+                collected.append(delta)
+                emitter.emit(
+                    AgentEventType.TEXT_DELTA,
+                    {"messageId": message_id, "delta": delta},
+                )
+        except RuntimeFailure:
+            raise
+        except Exception as error:
+            raise RuntimeFailure("model_stream_failure", "Model stream failed") from error
+        final_text = "".join(collected)
+        emitter.emit(
+            AgentEventType.TEXT_END,
+            {"messageId": message_id, "finalText": final_text},
+        )
+        emitter.emit(AgentEventType.STEP_FINISHED, {"step": checkpoint.steps})
+        emitter.emit(AgentEventType.RUN_FINISHED, {"status": "completed"})
+        self._save(checkpoint, emitter)
+        return AgentRunResult(checkpoint.run_id, "finished", final_text=final_text)
 
     def _execute_tool(
         self,
@@ -474,6 +498,7 @@ __all__ = [
     "AgentRunResult",
     "ApprovalInterruptAction",
     "FinishAction",
+    "StreamingFinishAction",
     "RecoverableToolError",
     "RunContext",
     "StaticRegistryProvider",
