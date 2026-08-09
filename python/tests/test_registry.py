@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from beacon_agent_runtime.capabilities import (
     CapabilityManifest,
+    DeviceCapabilityAdvertisement,
     RegistrySnapshot,
     canonical_manifest_json,
 )
@@ -141,3 +142,50 @@ def test_manifest_and_snapshot_are_immutable_and_hashes_are_canonical() -> None:
     with pytest.raises(ValidationError):
         plan.title = "mutated"  # type: ignore[misc]
 
+
+def test_effective_registry_requires_enabled_matching_device_advertisement() -> None:
+    plan = manifest()
+    registry = CapabilityRegistry(snapshot(plan))
+
+    effective = registry.resolve(
+        server_enabled={plan.id},
+        device_advertisements=(
+            DeviceCapabilityAdvertisement(
+                capabilityId=plan.id,
+                version=plan.version,
+                supportedSchemaVersions={plan.schema_version},
+                enabled=True,
+            ),
+        ),
+        authorized_scopes=set(plan.required_scopes),
+        policy_allowed={plan.id},
+    )
+
+    assert [item.id for item in effective.capabilities] == [plan.id]
+
+    for incompatible_advertisement in (
+        DeviceCapabilityAdvertisement(
+            capabilityId=plan.id,
+            version="2.0.0",
+            supportedSchemaVersions={plan.schema_version},
+            enabled=True,
+        ),
+        DeviceCapabilityAdvertisement(
+            capabilityId=plan.id,
+            version=plan.version,
+            supportedSchemaVersions={1},
+            enabled=True,
+        ),
+        DeviceCapabilityAdvertisement(
+            capabilityId=plan.id,
+            version=plan.version,
+            supportedSchemaVersions={plan.schema_version},
+            enabled=False,
+        ),
+    ):
+        assert registry.resolve(
+            server_enabled={plan.id},
+            device_advertisements=(incompatible_advertisement,),
+            authorized_scopes=set(plan.required_scopes),
+            policy_allowed={plan.id},
+        ).capabilities == ()

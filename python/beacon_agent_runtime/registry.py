@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from .capabilities import CapabilityManifest, RegistrySnapshot
+from .capabilities import (
+    CapabilityManifest,
+    DeviceCapabilityAdvertisement,
+    RegistrySnapshot,
+)
 
 
 class RegistryError(ValueError):
@@ -43,16 +47,34 @@ class CapabilityRegistry:
         self,
         *,
         server_enabled: set[str],
-        host_advertised: set[str],
-        compatible: set[str],
         authorized_scopes: set[str],
         policy_allowed: set[str],
+        device_advertisements: tuple[DeviceCapabilityAdvertisement, ...] = (),
+        host_advertised: set[str] | None = None,
+        compatible: set[str] | None = None,
         now: datetime | None = None,
     ) -> EffectiveRegistry:
         current = now or datetime.now(UTC)
         if current >= self.snapshot.expires_at:
             raise RegistryExpiredError("registry snapshot expired")
-        allowed_ids = server_enabled & host_advertised & compatible & policy_allowed
+        if device_advertisements:
+            advertisements = {
+                advertisement.capability_id: advertisement
+                for advertisement in device_advertisements
+            }
+            device_compatible = {
+                manifest.id
+                for manifest in self.snapshot.manifests
+                if (advertisement := advertisements.get(manifest.id)) is not None
+                and advertisement.enabled
+                and advertisement.version == manifest.version
+                and manifest.schema_version in advertisement.supported_schema_versions
+            }
+        else:
+            # Compatibility with the pre-advertisement protocol while callers
+            # are migrated.  New hosts must send `device_advertisements`.
+            device_compatible = (host_advertised or set()) & (compatible or set())
+        allowed_ids = server_enabled & device_compatible & policy_allowed
         capabilities = tuple(
             item
             for item in sorted(self.snapshot.manifests, key=lambda capability: capability.id)

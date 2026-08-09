@@ -97,6 +97,40 @@ class CapabilityManifest(BaseModel):
         return value
 
 
+class DeviceCapabilityAdvertisement(BaseModel):
+    """Device-declared support for one locally executable capability.
+
+    The server may use this declaration to remove an incompatible capability
+    from a Run.  It must never treat a declaration as permission to add a
+    capability which is not present in its signed registry snapshot.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, frozen=True, extra="forbid")
+
+    capability_id: str = Field(alias="capabilityId", min_length=1)
+    version: str
+    supported_schema_versions: frozenset[int] = Field(
+        alias="supportedSchemaVersions", min_length=1
+    )
+    enabled: bool
+
+    @field_validator("version")
+    @classmethod
+    def validate_semver(cls, value: str) -> str:
+        if SEMVER_PATTERN.fullmatch(value) is None:
+            raise ValueError("version must be semantic versioning")
+        return value
+
+    @field_validator("supported_schema_versions")
+    @classmethod
+    def validate_supported_schema_versions(
+        cls, value: frozenset[int]
+    ) -> frozenset[int]:
+        if any(version < 1 for version in value):
+            raise ValueError("supported schema versions must be positive")
+        return value
+
+
 class RegistrySnapshot(BaseModel):
     model_config = ConfigDict(populate_by_name=True, frozen=True, extra="forbid")
 
