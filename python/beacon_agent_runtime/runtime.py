@@ -449,13 +449,18 @@ class AgentRuntime:
             AgentEventType.TOOL_RESULT,
             {
                 "toolCallId": action.tool_call_id,
+                "capabilityId": action.capability_id,
                 "result": observation.data,
                 "idempotentReplay": replayed,
             },
         )
         emitter.emit(
             AgentEventType.TOOL_END,
-            {"toolCallId": action.tool_call_id, "status": "completed"},
+            {
+                "toolCallId": action.tool_call_id,
+                "capabilityId": action.capability_id,
+                "status": "completed",
+            },
         )
 
     def _save(self, checkpoint: RuntimeCheckpoint, emitter: AgentEventEmitter) -> None:
