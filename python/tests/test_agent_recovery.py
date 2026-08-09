@@ -219,12 +219,25 @@ def test_device_tool_interrupt_resumes_with_schema_valid_local_observation() -> 
         "step.finished",
         "run.finished",
     ]
-    assert sink.events[4].payload == {
+    assert sink.events[4].payload | {"deviceToolRequest": None} == {
         "reason": "device_tool_required",
         "toolCallId": "tool-device",
         "capabilityId": lookup.id,
         "arguments": {},
+        "deviceToolRequest": None,
     }
+    request = sink.events[4].payload["deviceToolRequest"]
+    assert request == {
+        "toolCallId": "tool-device",
+        "capabilityId": lookup.id,
+        "schemaVersion": lookup.schema_version,
+        "registryRevision": "registry-1",
+        "requestedScopes": ["training.read"],
+        "arguments": {},
+        "idempotencyKey": None,
+        "expiresAt": request["expiresAt"],
+    }
+    assert request["expiresAt"].endswith("Z")
     assert sink.events[5].payload["result"] == {"recordId": "iphone-local-1"}
 
 

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Protocol
+from datetime import UTC, datetime, timedelta
+from typing import Any, Callable, Protocol
 
 from jsonschema import Draft202012Validator, ValidationError
 
@@ -61,6 +62,7 @@ class AgentRuntimeLimits:
     max_tools: int = 8
     max_retries: int = 3
     max_observation_bytes: int = 65_536
+    device_tool_ttl_seconds: int = 300
 
 
 @dataclass(frozen=True)
@@ -90,6 +92,7 @@ class AgentRuntime:
         registry: RegistryProvider,
         limits: AgentRuntimeLimits,
         interrupt_device_tools: bool = False,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         self.model = model
         self.dispatcher = dispatcher
@@ -99,6 +102,7 @@ class AgentRuntime:
         self.registry = registry
         self.limits = limits
         self.interrupt_device_tools = interrupt_device_tools
+        self.clock = clock or (lambda: datetime.now(UTC))
 
     def start(
         self,
@@ -211,6 +215,7 @@ class AgentRuntime:
                         replayed = self._interrupt_device_tool(action, effective, checkpoint, emitter)
                         emitter.emit(AgentEventType.STEP_FINISHED, {"step": checkpoint.steps})
                         if not replayed:
+                            manifest = self._manifest(action.capability_id, effective)
                             emitter.emit(
                                 AgentEventType.RUN_INTERRUPTED,
                                 {
@@ -218,6 +223,11 @@ class AgentRuntime:
                                     "toolCallId": action.tool_call_id,
                                     "capabilityId": action.capability_id,
                                     "arguments": action.arguments,
+                                    "deviceToolRequest": self._device_tool_request_payload(
+                                        action,
+                                        manifest,
+                                        effective.revision,
+                                    ),
                                 },
                             )
                             self._save(checkpoint, emitter)
@@ -335,6 +345,7 @@ class AgentRuntime:
                 "toolCallId": action.tool_call_id,
                 "capabilityId": action.capability_id,
                 "executionLocation": "device",
+                "requestedScopes": list(action.requested_scopes),
             },
         )
         replay = (
@@ -348,6 +359,26 @@ class AgentRuntime:
             return True
         checkpoint.pending_device_tool = action
         return False
+
+    def _device_tool_request_payload(
+        self,
+        action: ToolRequestAction,
+        manifest: CapabilityManifest,
+        registry_revision: str,
+    ) -> dict[str, Any]:
+        """Emit the full request the device must independently validate."""
+
+        expires_at = self.clock() + timedelta(seconds=self.limits.device_tool_ttl_seconds)
+        return {
+            "toolCallId": action.tool_call_id,
+            "capabilityId": action.capability_id,
+            "schemaVersion": manifest.schema_version,
+            "registryRevision": registry_revision,
+            "requestedScopes": list(action.requested_scopes),
+            "arguments": action.arguments,
+            "idempotencyKey": action.idempotency_key,
+            "expiresAt": expires_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
+        }
 
     def _authorize_tool(
         self,
