@@ -274,6 +274,30 @@ def test_agent_emits_streamed_markdown_deltas_without_collapsing_whitespace() ->
     ) == result.final_text
 
 
+def test_agent_emits_step_started_before_the_model_is_invoked() -> None:
+    sink = ListEventSink()
+
+    class EventAwareModel:
+        def next_action(self, _context: RunContext) -> FinishAction:
+            assert str(sink.events[-1].type) == "step.started"
+            assert sink.events[-1].payload == {"step": 1}
+            return FinishAction("done")
+
+    agent = AgentRuntime(
+        model=EventAwareModel(),
+        dispatcher=RecordingDispatcher({}),
+        checkpoints=InMemoryCheckpointStore(),
+        policy=DefaultPolicyEngine(),
+        event_sink=sink,
+        registry=StaticRegistryProvider(EffectiveRegistry(revision="registry-1", capabilities=())),
+        limits=AgentRuntimeLimits(),
+    )
+
+    result = agent.start(run_id="run-real-step", query="hello", authorized_scopes=set())
+
+    assert result.status == "finished"
+
+
 def test_invalid_output_schema_fails_closed() -> None:
     lookup = capability(
         "training.context.read",

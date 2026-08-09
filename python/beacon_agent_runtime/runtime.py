@@ -204,12 +204,14 @@ class AgentRuntime:
                     step=checkpoint.steps,
                     pending_approval=checkpoint.pending_approval,
                 )
+                checkpoint.steps += 1
+                # This event marks the real provider invocation boundary.  Hosts
+                # may render it immediately; it is never a synthetic timeline row.
+                emitter.emit(AgentEventType.STEP_STARTED, {"step": checkpoint.steps})
                 try:
                     action = self.model.next_action(context)
                 except Exception as error:
                     raise RuntimeFailure("model_failure", "Model provider failed") from error
-                checkpoint.steps += 1
-                emitter.emit(AgentEventType.STEP_STARTED, {"step": checkpoint.steps})
 
                 if isinstance(action, ToolRequestAction):
                     if self.interrupt_device_tools and self._is_device_tool(action, effective):
