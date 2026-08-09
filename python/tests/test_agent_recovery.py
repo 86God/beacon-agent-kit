@@ -241,6 +241,41 @@ def test_device_tool_interrupt_resumes_with_schema_valid_local_observation() -> 
     assert sink.events[5].payload["result"] == {"recordId": "iphone-local-1"}
 
 
+def test_cancelled_interrupted_run_cannot_resume_or_write() -> None:
+    lookup = manifest("training.context.read")
+    action = ToolRequestAction("tool-device", lookup.id, {}, ("training.read",), None)
+    checkpoints = InMemoryCheckpointStore()
+    sink = ListEventSink()
+    agent = make_runtime(
+        QueueModel([action, FinishAction("must not run")]),
+        FlakyDispatcher(0),
+        (lookup,),
+        checkpoints,
+        sink,
+        interrupt_device_tools=True,
+    )
+
+    interrupted = agent.start(
+        run_id="run-cancelled",
+        query="读取本机记录",
+        authorized_scopes={"training.read"},
+    )
+    cancelled = agent.cancel(run_id="run-cancelled")
+    resumed = agent.resume_device_tool(
+        run_id="run-cancelled",
+        tool_call_id="tool-device",
+        observation={"recordId": "must-not-be-recorded"},
+    )
+
+    assert interrupted.status == "interrupted"
+    assert cancelled.status == "cancelled"
+    assert resumed.error_code == "run_cancelled"
+    checkpoint = checkpoints.load("run-cancelled")
+    assert checkpoint is not None and checkpoint.cancelled is True
+    assert checkpoint.pending_device_tool is None
+    assert sink.events[-1].payload == {"status": "cancelled"}
+
+
 def test_device_tool_resume_rejects_mismatched_or_invalid_observation_without_advancing() -> None:
     lookup = CapabilityManifest(
         **{

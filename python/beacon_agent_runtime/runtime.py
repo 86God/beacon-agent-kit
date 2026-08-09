@@ -132,7 +132,11 @@ class AgentRuntime:
         approved: bool,
     ) -> AgentRunResult:
         checkpoint = self.checkpoints.load(run_id)
-        if checkpoint is None or checkpoint.pending_approval is None:
+        if checkpoint is None:
+            return AgentRunResult(run_id, "error", error_code="checkpoint_missing")
+        if checkpoint.cancelled:
+            return AgentRunResult(run_id, "error", error_code="run_cancelled")
+        if checkpoint.pending_approval is None:
             return AgentRunResult(run_id, "error", error_code="checkpoint_missing")
         pending = checkpoint.pending_approval
         if pending.approval_id != approval_id:
@@ -169,7 +173,11 @@ class AgentRuntime:
         """Resume a device-bound tool call with an observation supplied by the host app."""
 
         checkpoint = self.checkpoints.load(run_id)
-        if checkpoint is None or checkpoint.pending_device_tool is None:
+        if checkpoint is None:
+            return AgentRunResult(run_id, "error", error_code="checkpoint_missing")
+        if checkpoint.cancelled:
+            return AgentRunResult(run_id, "error", error_code="run_cancelled")
+        if checkpoint.pending_device_tool is None:
             return AgentRunResult(run_id, "error", error_code="checkpoint_missing")
         pending = checkpoint.pending_device_tool
         if pending.tool_call_id != tool_call_id:
@@ -185,6 +193,23 @@ class AgentRuntime:
         self._record_observation(pending, validated, checkpoint, emitter, replayed=False)
         checkpoint.next_sequence = emitter.next_sequence
         return self._drive(checkpoint, emitter)
+
+    def cancel(self, *, run_id: str) -> AgentRunResult:
+        """Cancel an interrupted run before any device tool can resume it."""
+
+        checkpoint = self.checkpoints.load(run_id)
+        if checkpoint is None:
+            return AgentRunResult(run_id, "error", error_code="checkpoint_missing")
+        if checkpoint.cancelled:
+            return AgentRunResult(run_id, "cancelled", final_text="Cancelled")
+        emitter = AgentEventEmitter(run_id, self.event_sink, checkpoint.next_sequence)
+        checkpoint.cancelled = True
+        checkpoint.pending_approval = None
+        checkpoint.pending_device_tool = None
+        emitter.emit(AgentEventType.RUN_FINISHED, {"status": "cancelled"})
+        checkpoint.next_sequence = emitter.next_sequence
+        self.checkpoints.save(checkpoint)
+        return AgentRunResult(run_id, "cancelled", final_text="Cancelled")
 
     def _drive(
         self,
