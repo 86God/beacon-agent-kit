@@ -16,13 +16,15 @@ public final class BeaconAGUIStreamClient: @unchecked Sendable {
 
     public func events(
         for originalRequest: URLRequest,
-        resumeCursor: BeaconAGUIResumeCursor = BeaconAGUIResumeCursor()
+        resumeCursor: BeaconAGUIResumeCursor = BeaconAGUIResumeCursor(),
+        acceptsContinuationStart: Bool = false
     ) -> AsyncThrowingStream<BeaconAgentEventV2, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     var request = originalRequest
                     var cursor = resumeCursor
+                    var continuationStartPending = acceptsContinuationStart
                     cursor.apply(to: &request)
                     let (bytes, response) = try await session.bytes(for: request)
                     guard let httpResponse = response as? HTTPURLResponse else {
@@ -34,11 +36,17 @@ public final class BeaconAGUIStreamClient: @unchecked Sendable {
                     var parser = BeaconAGUISSEParser()
                     for try await byte in bytes {
                         let messages = try parser.append(Data([byte]))
-                        try yield(messages, cursor: &cursor, continuation: continuation)
+                        try yield(
+                            messages,
+                            cursor: &cursor,
+                            acceptsContinuationStart: &continuationStartPending,
+                            continuation: continuation
+                        )
                     }
                     try yield(
                         parser.finish(),
                         cursor: &cursor,
+                        acceptsContinuationStart: &continuationStartPending,
                         continuation: continuation
                     )
                     continuation.finish()
@@ -53,10 +61,20 @@ public final class BeaconAGUIStreamClient: @unchecked Sendable {
     private func yield(
         _ messages: [BeaconSSEMessage],
         cursor: inout BeaconAGUIResumeCursor,
+        acceptsContinuationStart: inout Bool,
         continuation: AsyncThrowingStream<BeaconAgentEventV2, Error>.Continuation
     ) throws {
         for message in messages {
             let event = try BeaconAGUIEventDecoder.decodeV2Event(message.data)
+            // A device-tool/approval resume is a new HTTP stream for the same
+            // run. Its first event continues the run sequence rather than
+            // restarting at zero; later gaps are still rejected normally.
+            if acceptsContinuationStart,
+               cursor.lastEventID == nil,
+               cursor.nextSequence == 0 {
+                cursor = BeaconAGUIResumeCursor(nextSequence: event.sequence)
+                acceptsContinuationStart = false
+            }
             switch try cursor.accept(event, serverEventID: message.id) {
             case .accepted:
                 continuation.yield(event)
