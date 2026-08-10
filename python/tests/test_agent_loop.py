@@ -164,6 +164,31 @@ def test_agent_alternates_model_and_tools_before_approval_interrupt() -> None:
     assert "run.finished" not in event_types
 
 
+def test_agent_accepts_validated_initial_observations_before_first_model_step() -> None:
+    model = ScriptedModel([FinishAction("done")])
+    agent, _ = runtime(
+        model=model,
+        dispatcher=RecordingDispatcher({}),
+        manifests=(),
+    )
+
+    result = agent.start(
+        run_id="run-edge-summary",
+        query="总结本周训练",
+        authorized_scopes=set(),
+        initial_observations=(
+            ToolObservation(
+                tool_call_id="edge:training.summary",
+                capability_id="edge.training.summary",
+                data={"completedTrainingSessions": 3},
+            ),
+        ),
+    )
+
+    assert result.status == "finished"
+    assert model.observation_counts == [1]
+
+
 def test_invalid_input_unknown_tool_policy_denial_and_large_observation_fail_closed() -> None:
     strict = capability(
         "training.context.read",

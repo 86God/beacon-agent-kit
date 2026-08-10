@@ -112,11 +112,13 @@ class AgentRuntime:
         query: str,
         authorized_scopes: set[str],
         preapproved_tool_calls: set[str] | None = None,
+        initial_observations: tuple[ToolObservation, ...] = (),
     ) -> AgentRunResult:
         checkpoint = RuntimeCheckpoint(
             run_id=run_id,
             query=query,
             authorized_scopes=set(authorized_scopes),
+            observations=list(initial_observations),
             approved_tool_calls=set(preapproved_tool_calls or ()),
         )
         emitter = AgentEventEmitter(run_id, self.event_sink)
