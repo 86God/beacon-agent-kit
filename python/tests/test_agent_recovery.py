@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from beacon_agent_runtime.capabilities import CapabilityManifest
-from beacon_agent_runtime.checkpoints import InMemoryCheckpointStore
+from beacon_agent_runtime.checkpoints import (
+    InMemoryCheckpointStore,
+    RuntimeCheckpoint,
+    SQLiteCheckpointStore,
+)
 from beacon_agent_runtime.events import ListEventSink
 from beacon_agent_runtime.policy import DefaultPolicyEngine
 from beacon_agent_runtime.registry import EffectiveRegistry
@@ -324,3 +328,29 @@ def test_device_tool_resume_rejects_mismatched_or_invalid_observation_without_ad
     assert still_pending is not None
     assert still_pending.pending_device_tool == action
     assert still_pending.next_sequence == sequence_before
+
+
+def test_sqlite_checkpoint_store_survives_a_new_runtime_instance(tmp_path) -> None:
+    path = tmp_path / "agent-checkpoints.sqlite3"
+    action = ToolRequestAction(
+        "tool-local", "training.context.read", {"dayIdentifier": "2026-08-11"},
+        ("training.read",), None,
+    )
+    checkpoint = RuntimeCheckpoint(
+        run_id="durable-run",
+        query="安排明天训练",
+        authorized_scopes={"training.read"},
+        observations=[ToolObservation("edge", "edge.training.summary", {"sessions": 2})],
+        steps=2,
+        next_sequence=7,
+        pending_device_tool=action,
+        approved_tool_calls={"approved-1"},
+        completed_idempotency={
+            "idempotency-1": ToolObservation("tool-1", "training.plan.draft", {"draftID": "d1"})
+        },
+    )
+    SQLiteCheckpointStore(path).save(checkpoint)
+
+    restored = SQLiteCheckpointStore(path).load("durable-run")
+
+    assert restored == checkpoint
