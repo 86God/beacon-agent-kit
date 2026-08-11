@@ -189,3 +189,23 @@ def test_effective_registry_requires_enabled_matching_device_advertisement() -> 
             authorized_scopes=set(plan.required_scopes),
             policy_allowed={plan.id},
         ).capabilities == ()
+
+
+def test_device_advertisement_accepts_optional_semantic_app_version() -> None:
+    advertisement = DeviceCapabilityAdvertisement(
+        capabilityId="training.plan.draft",
+        version="1.0.0",
+        supportedSchemaVersions={2},
+        appVersion="3.4.1",
+        enabled=True,
+    )
+
+    assert advertisement.app_version == "3.4.1"
+    with pytest.raises(ValidationError):
+        DeviceCapabilityAdvertisement(
+            capabilityId="training.plan.draft",
+            version="1.0.0",
+            supportedSchemaVersions={2},
+            appVersion="not-a-version",
+            enabled=True,
+        )

@@ -112,6 +112,7 @@ class DeviceCapabilityAdvertisement(BaseModel):
     supported_schema_versions: frozenset[int] = Field(
         alias="supportedSchemaVersions", min_length=1
     )
+    app_version: str | None = Field(default=None, alias="appVersion")
     enabled: bool
 
     @field_validator("version")
@@ -119,6 +120,13 @@ class DeviceCapabilityAdvertisement(BaseModel):
     def validate_semver(cls, value: str) -> str:
         if SEMVER_PATTERN.fullmatch(value) is None:
             raise ValueError("version must be semantic versioning")
+        return value
+
+    @field_validator("app_version")
+    @classmethod
+    def validate_optional_app_semver(cls, value: str | None) -> str | None:
+        if value is not None and SEMVER_PATTERN.fullmatch(value) is None:
+            raise ValueError("appVersion must be semantic versioning")
         return value
 
     @field_validator("supported_schema_versions")
