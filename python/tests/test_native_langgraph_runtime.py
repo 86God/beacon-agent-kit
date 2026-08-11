@@ -101,7 +101,7 @@ def test_native_langgraph_device_interrupt_resumes_without_persisting_private_ob
 
     interrupted = runtime.start(
         run_id="native-private-run",
-        query="我叫Alice，体重68kg，晚餐吃了牛肉粥。请安排明天练肩。",
+        query="我叫Alice，体重68kg，晚餐吃了牛肉粥。图片在 /private/photo.jpg。请安排明天练肩。",
         authorized_scopes={"training.read"},
     )
 
@@ -111,6 +111,7 @@ def test_native_langgraph_device_interrupt_resumes_without_persisting_private_ob
     }
     assert "Alice" not in _database_text(database)
     assert "牛肉粥" not in _database_text(database)
+    assert "/private/photo.jpg" not in _database_text(database)
 
     completed = runtime.resume_device_tool(
         run_id="native-private-run",
@@ -134,6 +135,7 @@ def test_native_langgraph_device_interrupt_resumes_without_persisting_private_ob
     assert "Alice" not in persisted
     assert "weightKg" not in persisted
     assert "牛肉粥" not in persisted
+    assert "/private/photo.jpg" not in persisted
 
 
 def test_native_rehydrate_rejects_replayed_arguments_that_do_not_match_checkpoint(
