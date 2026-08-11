@@ -87,6 +87,17 @@ class SQLiteCheckpointStore:
             ).fetchone()
         return _checkpoint_from_payload(json.loads(row[0])) if row is not None else None
 
+    def purge(self) -> None:
+        """Remove legacy payloads which may contain private device context.
+
+        Native LangGraph uses its own allowlisted checkpointer.  Hosts call this
+        during migration so the previous custom checkpoint table cannot retain
+        raw queries, observations, or tool arguments indefinitely.
+        """
+
+        with self._lock, self._connect() as connection:
+            connection.execute("DELETE FROM beacon_runtime_checkpoints")
+
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self.path)
 
