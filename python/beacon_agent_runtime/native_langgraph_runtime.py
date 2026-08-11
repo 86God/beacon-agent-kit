@@ -246,6 +246,40 @@ class NativeLangGraphAgentRuntime:
             Command(resume={"toolCallId": tool_call_id, "receipt": receipt}),
         )
 
+    def rehydrate_device_context(
+        self,
+        *,
+        run_id: str,
+        query: str,
+        pending_action: ToolRequestAction,
+    ) -> None:
+        """Restore only client-supplied transient context after a host restart.
+
+        The safe checkpoint proves which capability and tool call are pending;
+        the device re-supplies the query and request arguments from its local
+        conversation rather than the gateway retrieving them from persistence.
+        """
+
+        state = self._state(run_id)
+        if state is None or state.get("phase") != "waiting_device":
+            raise RuntimeFailure("device_tool_not_pending", "No device tool is waiting")
+        pending = state.get("pending_tool", {})
+        if (
+            pending.get("toolCallId") != pending_action.tool_call_id
+            or pending.get("capabilityId") != pending_action.capability_id
+            or tuple(pending.get("requestedScopes", ())) != pending_action.requested_scopes
+        ):
+            raise RuntimeFailure("device_tool_mismatch", "Replayed action does not match checkpoint")
+        manifest = self._manifest(pending_action.capability_id, self.registry.current())
+        try:
+            Draft202012Validator(manifest.input_schema).validate(pending_action.arguments)
+        except ValidationError as error:
+            raise RuntimeFailure("invalid_tool_arguments", "Tool arguments failed schema validation") from error
+        self._private[run_id] = _PrivateRunContext(
+            query=query,
+            actions={pending_action.tool_call_id: pending_action},
+        )
+
     def resume(self, *, run_id: str, approval_id: str, approved: bool) -> AgentRunResult:
         state = self._state(run_id)
         if state is None:

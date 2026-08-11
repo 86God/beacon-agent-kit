@@ -174,3 +174,61 @@ def test_native_langgraph_counts_device_tools_before_issuing_a_second_interrupt(
 
     assert result.status == "error"
     assert result.error_code == "tool_limit"
+
+
+def test_native_langgraph_requires_and_accepts_device_context_replay_after_restart(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "restart.sqlite3"
+    action = ToolRequestAction(
+        tool_call_id="restart-read",
+        capability_id="training.context.read",
+        arguments={"dayIdentifier": "2026-08-12"},
+        requested_scopes=("training.read",),
+        idempotency_key=None,
+    )
+    first = NativeLangGraphAgentRuntime.sqlite(
+        path=database,
+        model=_ScriptedModel([action]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (_device_manifest(),))),
+        limits=AgentRuntimeLimits(),
+    )
+    assert first.start(
+        run_id="native-restart",
+        query="Alice 想安排明天训练。",
+        authorized_scopes={"training.read"},
+    ).status == "interrupted"
+    first.close()
+
+    restarted = NativeLangGraphAgentRuntime.sqlite(
+        path=database,
+        model=_ScriptedModel([FinishAction("已恢复并生成草稿。")]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (_device_manifest(),))),
+        limits=AgentRuntimeLimits(),
+    )
+
+    assert restarted.resume_device_tool(
+        run_id="native-restart",
+        tool_call_id="restart-read",
+        observation={"displayName": "Alice", "weightKg": 68, "meal": "粥"},
+    ).error_code == "private_context_replay_required"
+
+    restarted.rehydrate_device_context(
+        run_id="native-restart",
+        query="Alice 想安排明天训练。",
+        pending_action=action,
+    )
+    completed = restarted.resume_device_tool(
+        run_id="native-restart",
+        tool_call_id="restart-read",
+        observation={"displayName": "Alice", "weightKg": 68, "meal": "粥"},
+    )
+
+    assert completed.status == "finished"
+    assert "Alice" not in _database_text(database)
