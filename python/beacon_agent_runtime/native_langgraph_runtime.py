@@ -24,6 +24,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
 from .capabilities import CapabilityManifest
+from .checkpoints import RuntimeCheckpoint
 from .events import (
     AgentEventEmitter,
     ApprovalInterruptAction,
@@ -221,6 +222,8 @@ class NativeLangGraphAgentRuntime:
         state = self._state(run_id)
         if state is None:
             return AgentRunResult(run_id, "error", error_code="checkpoint_missing")
+        if state.get("phase") == "cancelled":
+            return AgentRunResult(run_id, "error", error_code="run_cancelled")
         if state.get("phase") != "waiting_device":
             return AgentRunResult(run_id, "error", error_code="device_tool_not_pending")
         private = self._private.get(run_id)
@@ -247,6 +250,8 @@ class NativeLangGraphAgentRuntime:
         state = self._state(run_id)
         if state is None:
             return AgentRunResult(run_id, "error", error_code="checkpoint_missing")
+        if state.get("phase") == "cancelled":
+            return AgentRunResult(run_id, "error", error_code="run_cancelled")
         if state.get("phase") != "waiting_approval":
             return AgentRunResult(run_id, "error", error_code="approval_not_pending")
         pending = state.get("pending_approval", {})
@@ -283,7 +288,14 @@ class NativeLangGraphAgentRuntime:
                 if state.get("phase") == "waiting_device"
                 else "approval_required"
             )
-            next_sequence = self._emit(state, AgentEventType.RUN_INTERRUPTED, {"reason": reason})
+            payload: dict[str, Any] = {"reason": reason}
+            private = self._private.get(run_id)
+            if reason == "device_tool_required" and private is not None:
+                pending = state.get("pending_tool", {})
+                action = private.actions.get(str(pending.get("toolCallId", "")))
+                if action is not None:
+                    payload["deviceToolRequest"] = _transient_device_tool_request(action, pending)
+            next_sequence = self._emit(state, AgentEventType.RUN_INTERRUPTED, payload)
             self._graph.update_state(self._config(run_id), {"next_sequence": next_sequence})
             return AgentRunResult(run_id, "interrupted")
         private = self._private.get(run_id)
@@ -293,6 +305,61 @@ class NativeLangGraphAgentRuntime:
         if completed is not None:
             return completed
         return AgentRunResult(run_id, "error", error_code="graph_missing_result")
+
+    def checkpoint_view(self, run_id: str) -> dict[str, Any] | None:
+        """Expose a transient diagnostic view without reintroducing persistence.
+
+        Hosts use this only for compatibility diagnostics.  It deliberately
+        returns no query or observation values, and its pending action disappears
+        after a process restart together with the private vault.
+        """
+
+        state = self._state(run_id)
+        if state is None:
+            return None
+        pending_tool = state.get("pending_tool", {})
+        pending_approval = state.get("pending_approval", {})
+        return {
+            "phase": state.get("phase"),
+            "pendingDeviceTool": bool(pending_tool),
+            "pendingApproval": bool(pending_approval),
+            "toolCallId": pending_tool.get("toolCallId"),
+            "capabilityId": pending_tool.get("capabilityId"),
+            "nextSequence": state.get("next_sequence"),
+        }
+
+    def legacy_checkpoint_view(self, run_id: str) -> RuntimeCheckpoint | None:
+        """Transient compatibility view for host diagnostics and old adapters."""
+
+        state = self._state(run_id)
+        if state is None:
+            return None
+        private = self._private.get(run_id)
+        pending_tool = state.get("pending_tool", {})
+        pending_approval = state.get("pending_approval", {})
+        return RuntimeCheckpoint(
+            run_id=run_id,
+            query="",
+            authorized_scopes=set(state.get("authorized_scopes", ())),
+            observations=[],
+            steps=int(state.get("steps", 0)),
+            tools=int(state.get("tools", 0)),
+            retries=int(state.get("retries", 0)),
+            next_sequence=int(state.get("next_sequence", 0)),
+            pending_approval=(
+                private.approvals.get(str(pending_approval.get("approvalId", "")))
+                if private is not None
+                else None
+            ),
+            pending_device_tool=(
+                private.actions.get(str(pending_tool.get("toolCallId", "")))
+                if private is not None
+                else None
+            ),
+            cancelled=state.get("phase") == "cancelled",
+            approved_tool_calls=set(state.get("approved_tool_call_ids", ())),
+            completed_idempotency={},
+        )
 
     def _planner_node(self, state: _PersistentGraphState) -> dict[str, Any]:
         if state["steps"] >= self.limits.max_steps:
@@ -388,7 +455,12 @@ class NativeLangGraphAgentRuntime:
         next_sequence = self._emit(
             {**state, "next_sequence": next_sequence},
             AgentEventType.TOOL_RESULT,
-            {"toolCallId": action.tool_call_id, "capabilityId": action.capability_id, "status": "completed"},
+            {
+                "toolCallId": action.tool_call_id,
+                "capabilityId": action.capability_id,
+                "status": "completed",
+                "result": validated.data,
+            },
         )
         next_sequence = self._emit(
             {**state, "next_sequence": next_sequence},
@@ -448,6 +520,7 @@ class NativeLangGraphAgentRuntime:
                 "toolCallId": pending["toolCallId"],
                 "capabilityId": pending["capabilityId"],
                 "status": "completed",
+                "result": observation.data,
             },
         )
         next_sequence = self._emit(
@@ -472,6 +545,8 @@ class NativeLangGraphAgentRuntime:
 
     def _approval_request_node(self, state: _PersistentGraphState) -> dict[str, Any]:
         pending = state.get("pending_approval", {})
+        private = self._private.get(state["run_id"])
+        action = private.approvals.get(str(pending.get("approvalId", ""))) if private else None
         next_sequence = self._emit(
             state,
             AgentEventType.APPROVAL_REQUESTED,
@@ -482,6 +557,7 @@ class NativeLangGraphAgentRuntime:
                 "requestedScopes": pending["requestedScopes"],
                 "idempotencyKey": pending["idempotencyKey"],
                 "approvalRef": pending["approvalRef"],
+                "summary": action.summary if action is not None else "请在本机确认此操作。",
             },
         )
         next_sequence = self._emit(
@@ -686,6 +762,30 @@ def _safe_tool_event(action: ToolRequestAction, location: str) -> dict[str, Any]
         "capabilityId": action.capability_id,
         "executionLocation": location,
         "requestedScopes": list(action.requested_scopes),
+    }
+
+
+def _transient_device_tool_request(
+    action: ToolRequestAction,
+    reference: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the device request for the live SSE stream only.
+
+    The function is called outside graph nodes after an interrupt is observed.
+    Its return value is never placed in graph state or an interrupt payload, so
+    it remains available to the connected device without entering LangGraph's
+    persistent SQLite checkpoint.
+    """
+
+    return {
+        "toolCallId": action.tool_call_id,
+        "capabilityId": action.capability_id,
+        "schemaVersion": reference["schemaVersion"],
+        "registryRevision": reference["registryRevision"],
+        "requestedScopes": list(action.requested_scopes),
+        "arguments": action.arguments,
+        "idempotencyKey": action.idempotency_key,
+        "requestRef": reference["requestRef"],
     }
 
 

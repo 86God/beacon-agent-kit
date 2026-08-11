@@ -36,7 +36,11 @@ def _device_manifest() -> CapabilityManifest:
         title="Training context",
         description="Read a local training summary.",
         intentExamples=("总结本周训练",),
-        inputSchema={"type": "object", "additionalProperties": False},
+        inputSchema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {"dayIdentifier": {"type": "string"}},
+        },
         outputSchema={
             "type": "object",
             "additionalProperties": False,
@@ -81,7 +85,7 @@ def test_native_langgraph_device_interrupt_resumes_without_persisting_private_ob
                 ToolRequestAction(
                     tool_call_id="local-context-1",
                     capability_id="training.context.read",
-                    arguments={},
+                    arguments={"dayIdentifier": "2026-08-12"},
                     requested_scopes=("training.read",),
                     idempotency_key=None,
                 ),
@@ -102,6 +106,9 @@ def test_native_langgraph_device_interrupt_resumes_without_persisting_private_ob
     )
 
     assert interrupted.status == "interrupted"
+    assert sink.events[-1].payload["deviceToolRequest"]["arguments"] == {
+        "dayIdentifier": "2026-08-12"
+    }
     assert "Alice" not in _database_text(database)
     assert "牛肉粥" not in _database_text(database)
 
@@ -112,6 +119,11 @@ def test_native_langgraph_device_interrupt_resumes_without_persisting_private_ob
     )
 
     assert completed.status == "finished"
+    assert next(
+        event.payload["result"]
+        for event in sink.events
+        if str(event.type) == "tool.result"
+    ) == {"displayName": "Alice", "weightKg": 68, "meal": "牛肉粥"}
     persisted = _database_text(database)
     assert "Alice" not in persisted
     assert "weightKg" not in persisted
