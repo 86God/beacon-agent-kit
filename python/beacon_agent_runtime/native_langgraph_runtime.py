@@ -661,16 +661,28 @@ class NativeLangGraphAgentRuntime:
         if action is None:
             raise RuntimeFailure("private_context_replay_required", "Generated response must be replayed")
         chunks = (action.text,) if isinstance(action, FinishAction) else tuple(action.chunks)
-        next_sequence = self._emit(state, AgentEventType.TEXT_START, {})
+        # The iOS consumer keys incremental Markdown rendering by messageId and
+        # finalizes it from finalText.  Keep that public stream contract stable
+        # while the checkpoint remains limited to the safe graph state.
+        message_id = f"{state['run_id']}:final"
+        next_sequence = self._emit(
+            state,
+            AgentEventType.TEXT_START,
+            {"messageId": message_id},
+        )
         text = ""
         for chunk in chunks:
             text += chunk
             next_sequence = self._emit(
                 {**state, "next_sequence": next_sequence},
                 AgentEventType.TEXT_DELTA,
-                {"delta": chunk},
+                {"messageId": message_id, "delta": chunk},
             )
-        next_sequence = self._emit({**state, "next_sequence": next_sequence}, AgentEventType.TEXT_END, {})
+        next_sequence = self._emit(
+            {**state, "next_sequence": next_sequence},
+            AgentEventType.TEXT_END,
+            {"messageId": message_id, "finalText": text},
+        )
         next_sequence = self._emit(
             {**state, "next_sequence": next_sequence},
             AgentEventType.STEP_FINISHED,

@@ -119,6 +119,12 @@ def test_native_langgraph_device_interrupt_resumes_without_persisting_private_ob
     )
 
     assert completed.status == "finished"
+    text_events = [event for event in sink.events if str(event.type).startswith("text.")]
+    assert text_events[0].payload == {"messageId": "native-private-run:final"}
+    assert text_events[-1].payload == {
+        "messageId": "native-private-run:final",
+        "finalText": "已生成明日训练草稿。",
+    }
     assert next(
         event.payload["result"]
         for event in sink.events
