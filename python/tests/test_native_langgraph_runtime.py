@@ -136,6 +136,53 @@ def test_native_langgraph_device_interrupt_resumes_without_persisting_private_ob
     assert "牛肉粥" not in persisted
 
 
+def test_native_rehydrate_rejects_replayed_arguments_that_do_not_match_checkpoint(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "argument-binding.sqlite3"
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=database,
+        model=_ScriptedModel(
+            [
+                ToolRequestAction(
+                    tool_call_id="bound-action",
+                    capability_id="training.context.read",
+                    arguments={"dayIdentifier": "2026-08-12"},
+                    requested_scopes=("training.read",),
+                    idempotency_key=None,
+                )
+            ]
+        ),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (_device_manifest(),))),
+        limits=AgentRuntimeLimits(),
+    )
+    assert runtime.start(
+        run_id="argument-binding",
+        query="安排明天练肩",
+        authorized_scopes={"training.read"},
+    ).status == "interrupted"
+
+    try:
+        runtime.rehydrate_device_context(
+            run_id="argument-binding",
+            query="安排明天练肩",
+            pending_action=ToolRequestAction(
+                tool_call_id="bound-action",
+                capability_id="training.context.read",
+                arguments={"dayIdentifier": "2099-01-01"},
+                requested_scopes=("training.read",),
+                idempotency_key=None,
+            ),
+        )
+    except Exception as error:
+        assert getattr(error, "code", None) == "device_tool_mismatch"
+    else:
+        raise AssertionError("mismatched replay arguments must be rejected")
+
+
 def test_native_langgraph_counts_device_tools_before_issuing_a_second_interrupt(
     tmp_path: Path,
 ) -> None:

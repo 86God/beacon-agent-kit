@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from hashlib import sha256
+import json
 from pathlib import Path
 import sqlite3
 from typing import Any, Literal, TypedDict
@@ -268,6 +269,7 @@ class NativeLangGraphAgentRuntime:
             pending.get("toolCallId") != pending_action.tool_call_id
             or pending.get("capabilityId") != pending_action.capability_id
             or tuple(pending.get("requestedScopes", ())) != pending_action.requested_scopes
+            or pending.get("argumentsDigest") != _arguments_digest(pending_action.arguments)
         ):
             raise RuntimeFailure("device_tool_mismatch", "Replayed action does not match checkpoint")
         manifest = self._manifest(pending_action.capability_id, self.registry.current())
@@ -798,6 +800,7 @@ def _safe_tool_reference(
         "registryRevision": registry_revision,
         "requestedScopes": tuple(action.requested_scopes),
         "idempotencyKey": action.idempotency_key,
+        "argumentsDigest": _arguments_digest(action.arguments),
         "requestRef": _digest(f"{action.tool_call_id}:{action.capability_id}:{uuid4().hex}"),
     }
 
@@ -809,6 +812,10 @@ def _safe_tool_event(action: ToolRequestAction, location: str) -> dict[str, Any]
         "executionLocation": location,
         "requestedScopes": list(action.requested_scopes),
     }
+
+
+def _arguments_digest(arguments: dict[str, Any]) -> str:
+    return _digest(json.dumps(arguments, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
 
 
 def _transient_device_tool_request(
