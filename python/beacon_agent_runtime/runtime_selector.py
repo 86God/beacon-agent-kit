@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
-from .langgraph_runtime import LangGraphAgentRuntime
+from .native_langgraph_runtime import NativeLangGraphAgentRuntime
 from .runtime import AgentRuntime
 
 
@@ -18,7 +18,7 @@ class RuntimeMode(StrEnum):
     SHADOW_COMPARE = "shadow_compare"
 
 
-RuntimeClass: TypeAlias = type[AgentRuntime]
+RuntimeClass: TypeAlias = type[Any]
 
 
 @dataclass(frozen=True)
@@ -41,8 +41,8 @@ def select_runtime(mode: RuntimeMode | str) -> RuntimeSelection:
     if normalized is RuntimeMode.LEGACY:
         return RuntimeSelection(primary=AgentRuntime)
     if normalized is RuntimeMode.LANGGRAPH:
-        return RuntimeSelection(primary=LangGraphAgentRuntime)
-    return RuntimeSelection(primary=AgentRuntime, shadow=LangGraphAgentRuntime)
+        return RuntimeSelection(primary=NativeLangGraphAgentRuntime)
+    return RuntimeSelection(primary=AgentRuntime, shadow=NativeLangGraphAgentRuntime)
 
 
 __all__ = ["RuntimeMode", "RuntimeSelection", "select_runtime"]
