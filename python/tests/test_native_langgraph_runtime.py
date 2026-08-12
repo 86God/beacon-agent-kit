@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from beacon_agent_runtime.capabilities import CapabilityManifest
@@ -109,6 +110,8 @@ def test_native_langgraph_device_interrupt_resumes_without_persisting_private_ob
     assert sink.events[-1].payload["deviceToolRequest"]["arguments"] == {
         "dayIdentifier": "2026-08-12"
     }
+    expiry = sink.events[-1].payload["deviceToolRequest"]["expiresAt"]
+    assert datetime.fromisoformat(expiry.replace("Z", "+00:00")).tzinfo is not None
     assert "Alice" not in _database_text(database)
     assert "牛肉粥" not in _database_text(database)
     assert "/private/photo.jpg" not in _database_text(database)

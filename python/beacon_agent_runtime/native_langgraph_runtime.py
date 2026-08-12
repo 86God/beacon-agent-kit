@@ -11,6 +11,7 @@ from a server checkpoint.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -839,6 +840,12 @@ def _transient_device_tool_request(
         "arguments": action.arguments,
         "idempotencyKey": action.idempotency_key,
         "requestRef": reference["requestRef"],
+        # This request is deliberately live-stream-only, but the device still
+        # needs an explicit short expiry before it may execute a local action.
+        # Omitting it makes otherwise-valid requests fail closed on the client.
+        "expiresAt": (
+            datetime.now(UTC) + timedelta(minutes=2)
+        ).isoformat().replace("+00:00", "Z"),
     }
 
 
