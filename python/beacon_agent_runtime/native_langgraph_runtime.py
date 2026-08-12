@@ -508,6 +508,11 @@ class NativeLangGraphAgentRuntime:
         )
         try:
             observation = self.dispatcher.execute(action, manifest)
+        except RuntimeFailure:
+            # Dispatchers may already have translated provider/network errors
+            # into a safe, actionable code. Preserve it for the client instead
+            # of flattening every operational failure into ``tool_failure``.
+            raise
         except Exception as error:
             raise RuntimeFailure("tool_failure", "Tool execution failed") from error
         validated = self._validated_observation(action, manifest, observation.data)

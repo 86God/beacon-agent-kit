@@ -274,6 +274,46 @@ def test_native_langgraph_preserves_a_safe_provider_failure_code(
     assert result.error_code == "model_selected_unavailable_capability"
 
 
+def test_native_langgraph_preserves_a_safe_server_tool_failure_code(
+    tmp_path: Path,
+) -> None:
+    from beacon_agent_runtime.runtime import RuntimeFailure
+
+    class _FailingServerDispatcher:
+        def execute(self, *_arguments: object) -> object:
+            raise RuntimeFailure("vision_analysis_failed", "Image analysis is unavailable")
+
+    server_manifest = _device_manifest().model_copy(update={"execution_location": "server"})
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "safe-server-tool-failure.sqlite3",
+        model=_ScriptedModel(
+            [
+                ToolRequestAction(
+                    tool_call_id="vision-1",
+                    capability_id="training.context.read",
+                    arguments={},
+                    requested_scopes=("training.read",),
+                    idempotency_key=None,
+                )
+            ]
+        ),
+        dispatcher=_FailingServerDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (server_manifest,))),
+        limits=AgentRuntimeLimits(),
+    )
+
+    result = runtime.start(
+        run_id="safe-server-tool-failure",
+        query="识别这张图片",
+        authorized_scopes={"training.read"},
+    )
+
+    assert result.status == "error"
+    assert result.error_code == "vision_analysis_failed"
+
+
 def test_native_langgraph_requires_and_accepts_device_context_replay_after_restart(
     tmp_path: Path,
 ) -> None:
