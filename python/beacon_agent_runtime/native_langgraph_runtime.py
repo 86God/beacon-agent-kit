@@ -416,6 +416,12 @@ class NativeLangGraphAgentRuntime:
         )
         try:
             action = self.model.next_action(context)
+        except RuntimeFailure:
+            # Providers may deliberately return a bounded, protocol-safe error
+            # code (for example an unavailable tool selection).  Preserve that
+            # classification so the host can observe and recover it without
+            # retaining any prompt or device observation.
+            raise
         except Exception as error:
             raise RuntimeFailure("model_failure", "Model provider failed") from error
         updates: dict[str, Any] = {

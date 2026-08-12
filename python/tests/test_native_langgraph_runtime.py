@@ -234,6 +234,38 @@ def test_native_langgraph_counts_device_tools_before_issuing_a_second_interrupt(
     assert result.error_code == "tool_limit"
 
 
+def test_native_langgraph_preserves_a_safe_provider_failure_code(
+    tmp_path: Path,
+) -> None:
+    class _KnownFailureModel:
+        def next_action(self, _context: RunContext) -> object:
+            from beacon_agent_runtime.runtime import RuntimeFailure
+
+            raise RuntimeFailure(
+                "model_selected_unavailable_capability",
+                "Model selected an unavailable capability",
+            )
+
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "safe-provider-failure.sqlite3",
+        model=_KnownFailureModel(),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (_device_manifest(),))),
+        limits=AgentRuntimeLimits(),
+    )
+
+    result = runtime.start(
+        run_id="safe-provider-failure",
+        query="安排明天训练",
+        authorized_scopes={"training.read"},
+    )
+
+    assert result.status == "error"
+    assert result.error_code == "model_selected_unavailable_capability"
+
+
 def test_native_langgraph_requires_and_accepts_device_context_replay_after_restart(
     tmp_path: Path,
 ) -> None:
