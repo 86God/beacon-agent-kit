@@ -90,8 +90,9 @@ class _PrivateRunContext:
 class NativeLangGraphAgentRuntime:
     """LangGraph-native planner with privacy-safe device interrupts.
 
-    ``SqliteSaver`` is the production checkpointer.  The public methods mirror
-    the legacy runtime while translating device replies into opaque
+    ``PostgresSaver`` is the production checkpointer; ``SqliteSaver`` remains
+    available only for local development and isolated tests.  The public
+    methods mirror the legacy runtime while translating device replies into opaque
     ``Command(resume=...)`` values.  Raw observations stay only in
     ``_PrivateRunContext`` for the duration of the gateway process.
     """
