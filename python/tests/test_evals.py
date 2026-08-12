@@ -232,6 +232,13 @@ def test_jianhao_migration_fixture_requires_real_local_tool_event_order() -> Non
     assert report.failed_case_ids == ()
 
 
+def test_conformance_fixture_load_is_independent_of_the_current_working_directory() -> None:
+    cases = load_conformance_cases("conformance/fixtures/jianhao-agent-migration.jsonl")
+
+    assert cases
+    assert cases[0].id == "training-cross-date"
+
+
 def test_conformance_fails_closed_when_event_order_or_local_data_boundary_drifts() -> None:
     case = load_conformance_cases("conformance/fixtures/jianhao-agent-migration.jsonl")[0]
     observation = AgentConformanceObservation(

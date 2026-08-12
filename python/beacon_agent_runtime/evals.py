@@ -121,6 +121,12 @@ def load_conformance_cases(path: str | Path) -> tuple[AgentConformanceCase, ...]
     """Load versioned JSONL contracts and reject malformed fixture drift."""
 
     fixture_path = Path(path)
+    # Conformance fixtures are published with this package, while callers may
+    # execute tests from either the repository root or the Python package root.
+    # Resolve a missing relative path against the repository so evaluation does
+    # not depend on the current working directory.
+    if not fixture_path.is_absolute() and not fixture_path.exists():
+        fixture_path = Path(__file__).resolve().parents[2] / fixture_path
     cases: list[AgentConformanceCase] = []
     for line_number, line in enumerate(fixture_path.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip():
