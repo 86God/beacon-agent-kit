@@ -8,7 +8,13 @@ from datetime import datetime
 from pathlib import Path
 
 from beacon_agent_runtime.capabilities import CapabilityManifest
-from beacon_agent_runtime.events import FinishAction, ListEventSink, RunContext, ToolRequestAction
+from beacon_agent_runtime.events import (
+    ApprovalInterruptAction,
+    FinishAction,
+    ListEventSink,
+    RunContext,
+    ToolRequestAction,
+)
 from beacon_agent_runtime.native_langgraph_runtime import NativeLangGraphAgentRuntime
 from beacon_agent_runtime.policy import DefaultPolicyEngine
 from beacon_agent_runtime.registry import EffectiveRegistry
@@ -322,3 +328,74 @@ def test_native_langgraph_requires_and_accepts_device_context_replay_after_resta
 
     assert completed.status == "finished"
     assert "Alice" not in _database_text(database)
+
+
+def test_native_langgraph_rejects_duplicate_device_resume_after_the_same_interrupt(
+    tmp_path: Path,
+) -> None:
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "duplicate-device-resume.sqlite3",
+        model=_ScriptedModel(
+            [
+                ToolRequestAction(
+                    tool_call_id="one-read",
+                    capability_id="training.context.read",
+                    arguments={},
+                    requested_scopes=("training.read",),
+                    idempotency_key=None,
+                ),
+                FinishAction("已完成。"),
+            ]
+        ),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (_device_manifest(),))),
+        limits=AgentRuntimeLimits(),
+    )
+    assert runtime.start(
+        run_id="duplicate-device-resume", query="查询训练", authorized_scopes={"training.read"}
+    ).status == "interrupted"
+
+    first = runtime.resume_device_tool(
+        run_id="duplicate-device-resume",
+        tool_call_id="one-read",
+        observation={"displayName": "A", "weightKg": 66, "meal": "粥"},
+    )
+    second = runtime.resume_device_tool(
+        run_id="duplicate-device-resume",
+        tool_call_id="one-read",
+        observation={"displayName": "A", "weightKg": 66, "meal": "粥"},
+    )
+
+    assert first.status == "finished"
+    assert second.error_code == "device_tool_not_pending"
+
+
+def test_native_langgraph_resumes_approval_once_with_command_resume(tmp_path: Path) -> None:
+    approval = ApprovalInterruptAction(
+        approval_id="approval-1",
+        tool_call_id="commit-1",
+        capability_id="training.context.read",
+        summary="确认继续",
+        requested_scopes=("training.read",),
+        idempotency_key="commit-1",
+    )
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "approval-resume.sqlite3",
+        model=_ScriptedModel([approval, FinishAction("确认后完成。")]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (_device_manifest(),))),
+        limits=AgentRuntimeLimits(),
+    )
+    assert runtime.start(
+        run_id="approval-resume", query="确认操作", authorized_scopes={"training.read"}
+    ).status == "interrupted"
+
+    first = runtime.resume(run_id="approval-resume", approval_id="approval-1", approved=True)
+    second = runtime.resume(run_id="approval-resume", approval_id="approval-1", approved=True)
+
+    assert first.status == "finished"
+    assert second.error_code == "approval_not_pending"

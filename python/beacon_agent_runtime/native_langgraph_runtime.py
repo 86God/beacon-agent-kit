@@ -26,7 +26,6 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
 from .capabilities import CapabilityManifest
-from .checkpoints import RuntimeCheckpoint
 from .events import (
     AgentEventEmitter,
     ApprovalInterruptAction,
@@ -364,39 +363,6 @@ class NativeLangGraphAgentRuntime:
             "capabilityId": pending_tool.get("capabilityId"),
             "nextSequence": state.get("next_sequence"),
         }
-
-    def legacy_checkpoint_view(self, run_id: str) -> RuntimeCheckpoint | None:
-        """Transient compatibility view for host diagnostics and old adapters."""
-
-        state = self._state(run_id)
-        if state is None:
-            return None
-        private = self._private.get(run_id)
-        pending_tool = state.get("pending_tool", {})
-        pending_approval = state.get("pending_approval", {})
-        return RuntimeCheckpoint(
-            run_id=run_id,
-            query="",
-            authorized_scopes=set(state.get("authorized_scopes", ())),
-            observations=[],
-            steps=int(state.get("steps", 0)),
-            tools=int(state.get("tools", 0)),
-            retries=int(state.get("retries", 0)),
-            next_sequence=int(state.get("next_sequence", 0)),
-            pending_approval=(
-                private.approvals.get(str(pending_approval.get("approvalId", "")))
-                if private is not None
-                else None
-            ),
-            pending_device_tool=(
-                private.actions.get(str(pending_tool.get("toolCallId", "")))
-                if private is not None
-                else None
-            ),
-            cancelled=state.get("phase") == "cancelled",
-            approved_tool_calls=set(state.get("approved_tool_call_ids", ())),
-            completed_idempotency={},
-        )
 
     def _planner_node(self, state: _PersistentGraphState) -> dict[str, Any]:
         if state["steps"] >= self.limits.max_steps:
