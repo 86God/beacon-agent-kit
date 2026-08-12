@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from .capabilities import (
     CapabilityManifest,
     DeviceCapabilityAdvertisement,
+    ExecutionLocation,
     RegistrySnapshot,
 )
 
@@ -74,7 +75,16 @@ class CapabilityRegistry:
             # Compatibility with the pre-advertisement protocol while callers
             # are migrated.  New hosts must send `device_advertisements`.
             device_compatible = (host_advertised or set()) & (compatible or set())
-        allowed_ids = server_enabled & device_compatible & policy_allowed
+        # Device advertisements prove only locally executable capabilities.
+        # A server capability remains fail-closed on registry, rollout policy
+        # and scopes, but cannot require a fictional iOS advertisement.
+        server_capability_ids = {
+            manifest.id
+            for manifest in self.snapshot.manifests
+            if manifest.execution_location is ExecutionLocation.SERVER
+        }
+        compatible_ids = device_compatible | server_capability_ids
+        allowed_ids = server_enabled & compatible_ids & policy_allowed
         capabilities = tuple(
             item
             for item in sorted(self.snapshot.manifests, key=lambda capability: capability.id)

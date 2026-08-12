@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from beacon_agent_runtime.capabilities import (
     CapabilityManifest,
     DeviceCapabilityAdvertisement,
+    ExecutionLocation,
     RegistrySnapshot,
     canonical_manifest_json,
 )
@@ -189,6 +190,22 @@ def test_effective_registry_requires_enabled_matching_device_advertisement() -> 
             authorized_scopes=set(plan.required_scopes),
             policy_allowed={plan.id},
         ).capabilities == ()
+
+
+def test_server_capability_does_not_require_a_device_advertisement() -> None:
+    vision = manifest("vision.image.analyze", scopes=("image.analysis",)).model_copy(
+        update={"execution_location": ExecutionLocation.SERVER}
+    )
+    registry = CapabilityRegistry(snapshot(vision))
+
+    effective = registry.resolve(
+        server_enabled={vision.id},
+        device_advertisements=(),
+        authorized_scopes={"image.analysis"},
+        policy_allowed={vision.id},
+    )
+
+    assert [item.id for item in effective.capabilities] == [vision.id]
 
 
 def test_device_advertisement_accepts_optional_semantic_app_version() -> None:
