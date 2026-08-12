@@ -32,7 +32,9 @@ class RuntimeSelection:
 def select_runtime(mode: RuntimeMode | str) -> RuntimeSelection:
     """Resolve a strictly server-owned, reversible runtime choice.
 
-    Shadow comparison intentionally keeps legacy as the user-visible primary.
+    LangGraph remains user-visible in every non-emergency mode.  Shadow mode
+    runs the legacy runtime only as an isolated, no-side-effect comparator, so
+    rollout telemetry cannot silently route a user back through old state.
     Hosts must instantiate the shadow with device interruption and a rejecting
     server dispatcher so it can never cause an additional write.
     """
@@ -42,7 +44,7 @@ def select_runtime(mode: RuntimeMode | str) -> RuntimeSelection:
         return RuntimeSelection(primary=AgentRuntime)
     if normalized is RuntimeMode.LANGGRAPH:
         return RuntimeSelection(primary=NativeLangGraphAgentRuntime)
-    return RuntimeSelection(primary=AgentRuntime, shadow=NativeLangGraphAgentRuntime)
+    return RuntimeSelection(primary=NativeLangGraphAgentRuntime, shadow=AgentRuntime)
 
 
 __all__ = ["RuntimeMode", "RuntimeSelection", "select_runtime"]

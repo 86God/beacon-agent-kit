@@ -10,5 +10,5 @@ def test_runtime_selector_has_reversible_primary_and_nonwriting_shadow_mode() ->
     assert select_runtime(RuntimeMode.LANGGRAPH).primary is NativeLangGraphAgentRuntime
 
     shadow = select_runtime(RuntimeMode.SHADOW_COMPARE)
-    assert shadow.primary is AgentRuntime
-    assert shadow.shadow is NativeLangGraphAgentRuntime
+    assert shadow.primary is NativeLangGraphAgentRuntime
+    assert shadow.shadow is AgentRuntime
