@@ -354,3 +354,18 @@ def test_sqlite_checkpoint_store_survives_a_new_runtime_instance(tmp_path) -> No
     restored = SQLiteCheckpointStore(path).load("durable-run")
 
     assert restored == checkpoint
+
+
+def test_sqlite_checkpoint_store_can_purge_legacy_private_payloads(tmp_path) -> None:
+    store = SQLiteCheckpointStore(tmp_path / "legacy-checkpoints.sqlite3")
+    store.save(
+        RuntimeCheckpoint(
+            run_id="legacy-run",
+            query="Alice 晚餐牛肉粥",
+            authorized_scopes=set(),
+        )
+    )
+
+    store.purge()
+
+    assert store.load("legacy-run") is None

@@ -4,17 +4,22 @@ public struct BeaconDeviceCapabilityAdvertisement: Codable, Equatable, Sendable 
     public let capabilityID: String
     public let version: String
     public let supportedSchemaVersions: Set<Int>
+    /// The installed app version. The server may only use it to remove a
+    /// capability below a release's minimum version; it never grants access.
+    public let appVersion: String?
     public let enabled: Bool
 
     public init(
         capabilityID: String,
         version: String,
         supportedSchemaVersions: Set<Int>,
+        appVersion: String? = nil,
         enabled: Bool
     ) {
         self.capabilityID = capabilityID
         self.version = version
         self.supportedSchemaVersions = supportedSchemaVersions
+        self.appVersion = appVersion
         self.enabled = enabled
     }
 
@@ -22,6 +27,7 @@ public struct BeaconDeviceCapabilityAdvertisement: Codable, Equatable, Sendable 
         case capabilityID = "capabilityId"
         case version
         case supportedSchemaVersions
+        case appVersion
         case enabled
     }
 }
