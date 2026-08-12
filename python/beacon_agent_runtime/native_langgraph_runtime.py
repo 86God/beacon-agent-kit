@@ -21,6 +21,10 @@ from uuid import uuid4
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
+try:  # Optional until a host explicitly configures a PostgreSQL checkpointer.
+    from langgraph.checkpoint.postgres import PostgresSaver
+except ImportError:  # pragma: no cover - exercised by the factory's error path.
+    PostgresSaver = None  # type: ignore[assignment,misc]
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
@@ -103,9 +107,11 @@ class NativeLangGraphAgentRuntime:
         registry: RegistryProvider,
         limits: AgentRuntimeLimits,
         sqlite_connection: sqlite3.Connection | None = None,
+        postgres_context: Any | None = None,
     ) -> None:
         self._checkpointer = checkpointer
         self._sqlite_connection = sqlite_connection
+        self._postgres_context = postgres_context
         self.model = model
         self.dispatcher = dispatcher
         self.policy = policy
@@ -170,10 +176,54 @@ class NativeLangGraphAgentRuntime:
             limits=limits,
         )
 
+    @classmethod
+    def postgresql(
+        cls,
+        *,
+        connection_string: str,
+        model: ModelProvider,
+        dispatcher: ToolDispatcher,
+        policy: PolicyEngine,
+        event_sink: EventSink,
+        registry: RegistryProvider,
+        limits: AgentRuntimeLimits,
+    ) -> "NativeLangGraphAgentRuntime":
+        """Create a production graph with LangGraph's official Postgres saver.
+
+        The caller owns the connection string through deployment secrets; this
+        class never persists it.  ``setup`` is idempotent and creates the
+        official LangGraph tables on the first deployment.
+        """
+
+        if PostgresSaver is None:
+            raise RuntimeError(
+                "langgraph_checkpoint_postgres_unavailable"
+            )
+        context = PostgresSaver.from_conn_string(connection_string)
+        checkpointer = context.__enter__()
+        try:
+            checkpointer.setup()
+            return cls(
+                checkpointer=checkpointer,
+                postgres_context=context,
+                model=model,
+                dispatcher=dispatcher,
+                policy=policy,
+                event_sink=event_sink,
+                registry=registry,
+                limits=limits,
+            )
+        except Exception:
+            context.__exit__(None, None, None)
+            raise
+
     def close(self) -> None:
         if self._sqlite_connection is not None:
             self._sqlite_connection.close()
             self._sqlite_connection = None
+        if self._postgres_context is not None:
+            self._postgres_context.__exit__(None, None, None)
+            self._postgres_context = None
 
     def start(
         self,

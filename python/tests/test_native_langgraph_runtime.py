@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+import pytest
 from beacon_agent_runtime.capabilities import CapabilityManifest
 from beacon_agent_runtime.events import (
     ApprovalInterruptAction,
@@ -15,6 +16,7 @@ from beacon_agent_runtime.events import (
     RunContext,
     ToolRequestAction,
 )
+import beacon_agent_runtime.native_langgraph_runtime as native_runtime_module
 from beacon_agent_runtime.native_langgraph_runtime import NativeLangGraphAgentRuntime
 from beacon_agent_runtime.policy import DefaultPolicyEngine
 from beacon_agent_runtime.registry import EffectiveRegistry
@@ -399,3 +401,45 @@ def test_native_langgraph_resumes_approval_once_with_command_resume(tmp_path: Pa
 
     assert first.status == "finished"
     assert second.error_code == "approval_not_pending"
+
+
+def test_native_langgraph_postgres_factory_uses_official_saver_and_closes_context(
+    monkeypatch,
+) -> None:
+    calls: list[object] = []
+
+    class _Saver(native_runtime_module.SqliteSaver):
+        def __init__(self) -> None:
+            super().__init__(sqlite3.connect(":memory:"))
+
+        def setup(self) -> None:
+            calls.append("setup")
+
+    class _ConnectionContext:
+        def __enter__(self) -> _Saver:
+            calls.append("enter")
+            return _Saver()
+
+        def __exit__(self, *_arguments: object) -> None:
+            calls.append("exit")
+
+    class _PostgresSaver:
+        @staticmethod
+        def from_conn_string(connection_string: str) -> _ConnectionContext:
+            calls.append(connection_string)
+            return _ConnectionContext()
+
+    monkeypatch.setattr(native_runtime_module, "PostgresSaver", _PostgresSaver)
+    runtime = NativeLangGraphAgentRuntime.postgresql(
+        connection_string="postgresql://agent:secret@db/jianhao_agent",
+        model=_ScriptedModel([FinishAction("done")]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", ())),
+        limits=AgentRuntimeLimits(),
+    )
+
+    assert calls == ["postgresql://agent:secret@db/jianhao_agent", "enter", "setup"]
+    runtime.close()
+    assert calls[-1] == "exit"
