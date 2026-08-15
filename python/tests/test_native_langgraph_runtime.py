@@ -254,12 +254,13 @@ def test_native_langgraph_preserves_a_safe_provider_failure_code(
                 "Model selected an unavailable capability",
             )
 
+    sink = ListEventSink()
     runtime = NativeLangGraphAgentRuntime.sqlite(
         path=tmp_path / "safe-provider-failure.sqlite3",
         model=_KnownFailureModel(),
         dispatcher=_NoopDispatcher(),
         policy=DefaultPolicyEngine(),
-        event_sink=ListEventSink(),
+        event_sink=sink,
         registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (_device_manifest(),))),
         limits=AgentRuntimeLimits(),
     )
@@ -272,6 +273,8 @@ def test_native_langgraph_preserves_a_safe_provider_failure_code(
 
     assert result.status == "error"
     assert result.error_code == "model_selected_unavailable_capability"
+    assert [event.sequence for event in sink.events] == list(range(len(sink.events)))
+    assert sink.events[-1].type == "run.error"
 
 
 def test_native_langgraph_preserves_a_safe_server_tool_failure_code(

@@ -120,6 +120,11 @@ class NativeLangGraphAgentRuntime:
         self.registry = registry
         self.limits = limits
         self._private: dict[str, _PrivateRunContext] = {}
+        # A graph node can emit an observable event and then raise before its
+        # returned state reaches the checkpointer.  Retain only the next event
+        # cursor in memory so terminal failures never reuse that just-emitted
+        # sequence number.  This contains no user or tool data.
+        self._emitted_next_sequence: dict[str, int] = {}
 
         graph = StateGraph(_PersistentGraphState)
         graph.add_node("planner", self._planner_node)
@@ -737,6 +742,13 @@ class NativeLangGraphAgentRuntime:
     def _fail(self, run_id: str, failure: RuntimeFailure) -> AgentRunResult:
         state = self._state(run_id)
         if state is not None:
+            state = {
+                **state,
+                "next_sequence": max(
+                    state.get("next_sequence", 0),
+                    self._emitted_next_sequence.get(run_id, 0),
+                ),
+            }
             next_sequence = self._emit(
                 state,
                 AgentEventType.RUN_ERROR,
@@ -765,6 +777,7 @@ class NativeLangGraphAgentRuntime:
     ) -> int:
         emitter = AgentEventEmitter(state["run_id"], self.event_sink, state.get("next_sequence", 0))
         emitter.emit(event_type, payload)
+        self._emitted_next_sequence[state["run_id"]] = emitter.next_sequence
         return emitter.next_sequence
 
     def _authorize_tool(
