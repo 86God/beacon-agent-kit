@@ -7,6 +7,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from beacon_agent_runtime.protocol import AgentEvent
 from beacon_agent_runtime.reducer import AgentReplayError, AgentStateReducer, EventCollisionError
@@ -118,6 +119,20 @@ def test_terminal_state_rejects_late_events_without_changing_projection() -> Non
     with pytest.raises(AgentReplayError):
         reducer.ingest(late_text)
     assert reducer.normalized_json() == terminal_projection
+
+
+def test_unsupported_schema_version_is_rejected_before_replay() -> None:
+    with pytest.raises(ValidationError):
+        AgentEvent.model_validate(
+            {
+                "schemaVersion": 3,
+                "eventId": "future-0",
+                "runId": "run-future",
+                "sequence": 0,
+                "type": "run.started",
+                "payload": {},
+            }
+        )
 
 
 def test_python_normalized_json_is_canonical() -> None:

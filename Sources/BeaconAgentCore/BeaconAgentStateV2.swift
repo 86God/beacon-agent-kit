@@ -1,6 +1,7 @@
 import Foundation
 
 public enum BeaconAgentReplayError: Error, Equatable, Sendable {
+    case unsupportedSchemaVersion(Int)
     case eventCollision(String)
     case sequenceCollision(Int)
     case mixedRunIds
@@ -31,6 +32,9 @@ public struct BeaconAgentStateV2: Sendable {
     public init() {}
 
     public mutating func ingest(_ event: BeaconAgentEventV2) throws {
+        guard event.schemaVersion == 2 else {
+            throw BeaconAgentReplayError.unsupportedSchemaVersion(event.schemaVersion)
+        }
         let fingerprint = try canonicalData(event)
         if let previous = seen[event.eventId] {
             guard previous == fingerprint else {

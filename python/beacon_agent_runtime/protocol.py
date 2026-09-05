@@ -40,7 +40,7 @@ class AgentEvent(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, frozen=True, extra="forbid")
 
-    schema_version: int = Field(alias="schemaVersion", ge=1)
+    schema_version: int = Field(alias="schemaVersion", ge=2, le=2)
     event_id: str = Field(alias="eventId")
     run_id: str = Field(alias="runId")
     sequence: int = Field(ge=0)

@@ -150,6 +150,25 @@ struct BeaconAgentV2ConformanceTests {
         #expect(try state.normalizedJSON().contains("\"status\":\"finished\""))
     }
 
+    @Test
+    func unsupportedSchemaVersionFailsBeforeProjectionChanges() throws {
+        var state = BeaconAgentStateV2()
+        let unsupported = BeaconAgentEventV2(
+            schemaVersion: 3,
+            eventId: "future-0",
+            runId: "run-future",
+            sequence: 0,
+            type: "run.started",
+            payload: [:]
+        )
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(unsupported)
+        }
+        #expect(state.nextSequence == 0)
+        #expect(try state.normalizedJSON().contains("\"status\":\"idle\""))
+    }
+
     private var fixtureDirectory: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
