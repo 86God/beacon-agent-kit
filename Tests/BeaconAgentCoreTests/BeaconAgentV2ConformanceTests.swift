@@ -67,6 +67,77 @@ struct BeaconAgentV2ConformanceTests {
         }
     }
 
+    @Test
+    func terminalStateRejectsLateEventsWithoutChangingProjection() throws {
+        var state = BeaconAgentStateV2()
+        let terminal = BeaconAgentEventV2(
+            schemaVersion: 2,
+            eventId: "terminal-0",
+            runId: "run-terminal",
+            sequence: 0,
+            type: "run.error",
+            payload: ["message": .string("请重试")]
+        )
+        try state.ingest(terminal)
+        let terminalProjection = try state.normalizedJSON()
+
+        try state.ingest(terminal)
+        #expect(try state.normalizedJSON() == terminalProjection)
+
+        let lateText = BeaconAgentEventV2(
+            schemaVersion: 2,
+            eventId: "late-1",
+            runId: "run-terminal",
+            sequence: 1,
+            type: "text.start",
+            payload: ["messageId": .string("late-message")]
+        )
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(lateText)
+        }
+        #expect(try state.normalizedJSON() == terminalProjection)
+    }
+
+    @Test
+    func bufferedEventsAfterTerminalSequenceAreDiscarded() throws {
+        var state = BeaconAgentStateV2()
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "run-0",
+                runId: "run-buffered-terminal",
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            )
+        )
+        let lateText = BeaconAgentEventV2(
+            schemaVersion: 2,
+            eventId: "late-2",
+            runId: "run-buffered-terminal",
+            sequence: 2,
+            type: "text.start",
+            payload: ["messageId": .string("late-message")]
+        )
+        try state.ingest(lateText)
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "terminal-1",
+                runId: "run-buffered-terminal",
+                sequence: 1,
+                type: "run.finished",
+                payload: [:]
+            )
+        )
+
+        #expect(state.nextSequence == 2)
+        #expect(!(try state.normalizedJSON()).contains("late-message"))
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(lateText)
+        }
+    }
+
     private var fixtureDirectory: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

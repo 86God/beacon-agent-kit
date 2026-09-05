@@ -4,6 +4,7 @@ public enum BeaconAgentReplayError: Error, Equatable, Sendable {
     case eventCollision(String)
     case sequenceCollision(Int)
     case mixedRunIds
+    case eventAfterTerminal(Int)
     case malformedPayload(String)
     case unsupportedPatch
 }
@@ -25,6 +26,7 @@ public struct BeaconAgentStateV2: Sendable {
     private var errors: [[String: BeaconJSONValue]] = []
     private var buffer: [Int: BeaconAgentEventV2] = [:]
     private var seen: [String: Data] = [:]
+    private var terminalSequence: Int?
 
     public init() {}
 
@@ -39,6 +41,9 @@ public struct BeaconAgentStateV2: Sendable {
         if let runId, runId != event.runId {
             throw BeaconAgentReplayError.mixedRunIds
         }
+        if terminalSequence != nil {
+            throw BeaconAgentReplayError.eventAfterTerminal(event.sequence)
+        }
         if let buffered = buffer[event.sequence], buffered.eventId != event.eventId {
             throw BeaconAgentReplayError.sequenceCollision(event.sequence)
         }
@@ -51,6 +56,13 @@ public struct BeaconAgentStateV2: Sendable {
         while let current = buffer.removeValue(forKey: nextSequence) {
             try reduce(current)
             nextSequence += 1
+            if terminalSequence != nil {
+                for lateEvent in buffer.values {
+                    seen.removeValue(forKey: lateEvent.eventId)
+                }
+                buffer.removeAll()
+                break
+            }
         }
     }
 
@@ -87,11 +99,14 @@ public struct BeaconAgentStateV2: Sendable {
             status = "running"
         case "run.finished":
             status = "finished"
+            terminalSequence = event.sequence
         case "run.interrupted":
             status = "interrupted"
+            terminalSequence = event.sequence
         case "run.error":
             status = "error"
             errors.append(payload)
+            terminalSequence = event.sequence
         case "activity.snapshot", "activity.delta":
             let identifier = try requiredString("activityId", in: payload)
             activities[identifier, default: [:]].merge(payload) { _, new in new }
