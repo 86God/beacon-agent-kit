@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from beacon_agent_runtime.protocol import AgentEvent
-from beacon_agent_runtime.reducer import AgentStateReducer, EventCollisionError
+from beacon_agent_runtime.reducer import AgentReplayError, AgentStateReducer, EventCollisionError
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -87,8 +87,40 @@ def test_duplicate_event_id_with_different_payload_fails_closed() -> None:
         reducer.ingest(collision)
 
 
+def test_terminal_state_rejects_late_events_without_changing_projection() -> None:
+    terminal = AgentEvent.model_validate(
+        {
+            "schemaVersion": 2,
+            "eventId": "terminal-0",
+            "runId": "run-terminal",
+            "sequence": 0,
+            "type": "run.error",
+            "payload": {"message": "请重试"},
+        }
+    )
+    reducer = AgentStateReducer()
+    reducer.ingest(terminal)
+    terminal_projection = reducer.normalized_json()
+
+    reducer.ingest(terminal)
+    assert reducer.normalized_json() == terminal_projection
+
+    late_text = AgentEvent.model_validate(
+        {
+            "schemaVersion": 2,
+            "eventId": "late-1",
+            "runId": "run-terminal",
+            "sequence": 1,
+            "type": "text.start",
+            "payload": {"messageId": "late-message"},
+        }
+    )
+    with pytest.raises(AgentReplayError):
+        reducer.ingest(late_text)
+    assert reducer.normalized_json() == terminal_projection
+
+
 def test_python_normalized_json_is_canonical() -> None:
     normalized = replay(load_events("tomorrow-training-run.jsonl")).normalized_json()
 
     assert normalized == json.dumps(json.loads(normalized), ensure_ascii=False, separators=(",", ":"), sort_keys=True)
-

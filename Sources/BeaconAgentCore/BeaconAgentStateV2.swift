@@ -102,7 +102,6 @@ public struct BeaconAgentStateV2: Sendable {
             terminalSequence = event.sequence
         case "run.interrupted":
             status = "interrupted"
-            terminalSequence = event.sequence
         case "run.error":
             status = "error"
             errors.append(payload)

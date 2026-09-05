@@ -138,6 +138,18 @@ struct BeaconAgentV2ConformanceTests {
         }
     }
 
+    @Test
+    func interruptedSegmentCanResumeUntilRunFinishes() throws {
+        let events = try loadEvents("tool-interrupt-resume.jsonl")
+        var state = BeaconAgentStateV2()
+        for event in events {
+            try state.ingest(event)
+        }
+
+        #expect(state.nextSequence == events.count)
+        #expect(try state.normalizedJSON().contains("\"status\":\"finished\""))
+    }
+
     private var fixtureDirectory: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

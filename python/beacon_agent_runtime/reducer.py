@@ -98,6 +98,7 @@ class AgentStateReducer:
     errors: list[dict[str, Any]] = field(default_factory=list)
     _buffer: dict[int, AgentEvent] = field(default_factory=dict, repr=False)
     _seen: dict[str, str] = field(default_factory=dict, repr=False)
+    _terminal_sequence: int | None = field(default=None, repr=False)
 
     def ingest(self, event: AgentEvent) -> None:
         document = _event_document(event)
@@ -109,6 +110,10 @@ class AgentStateReducer:
             return
         if self.run_id is not None and event.run_id != self.run_id:
             raise AgentReplayError("one reducer cannot mix run IDs")
+        if self._terminal_sequence is not None:
+            raise AgentReplayError(
+                f"event after terminal sequence: {event.sequence}"
+            )
         buffered = self._buffer.get(event.sequence)
         if buffered is not None and buffered.event_id != event.event_id:
             raise SequenceCollisionError(f"sequence collision: {event.sequence}")
@@ -121,6 +126,11 @@ class AgentStateReducer:
             current = self._buffer.pop(self.next_sequence)
             self._reduce(current)
             self.next_sequence += 1
+            if self._terminal_sequence is not None:
+                for late_event in self._buffer.values():
+                    self._seen.pop(late_event.event_id, None)
+                self._buffer.clear()
+                break
 
     def normalized(self) -> dict[str, Any]:
         return {
@@ -152,11 +162,13 @@ class AgentStateReducer:
             self.status = "running"
         elif event_type == AgentEventType.RUN_FINISHED:
             self.status = "finished"
+            self._terminal_sequence = event.sequence
         elif event_type == AgentEventType.RUN_INTERRUPTED:
             self.status = "interrupted"
         elif event_type == AgentEventType.RUN_ERROR:
             self.status = "error"
             self.errors.append(payload)
+            self._terminal_sequence = event.sequence
         elif event_type in {AgentEventType.ACTIVITY_SNAPSHOT, AgentEventType.ACTIVITY_DELTA}:
             identifier = _required_string(payload, "activityId")
             self.activities.setdefault(identifier, {}).update(payload)
