@@ -19,7 +19,8 @@ let package = Package(
         .library(name: "BeaconAgentA2UI", targets: ["BeaconAgentA2UI"]),
         .library(name: "BeaconAgentDevice", targets: ["BeaconAgentDevice"]),
         .library(name: "BeaconAgentMCP", targets: ["BeaconAgentMCP"]),
-        .library(name: "BeaconAgentAppleEvents", targets: ["BeaconAgentAppleEvents"])
+        .library(name: "BeaconAgentAppleEvents", targets: ["BeaconAgentAppleEvents"]),
+        .library(name: "BeaconAgentMemory", targets: ["BeaconAgentMemory"])
     ],
     targets: [
         .target(name: "BeaconAgentCore"),
@@ -30,6 +31,7 @@ let package = Package(
         .target(name: "BeaconAgentDevice", dependencies: ["BeaconAgentCore"]),
         .target(name: "BeaconAgentMCP", dependencies: ["BeaconAgentCore", "BeaconAgentA2UI"]),
         .target(name: "BeaconAgentAppleEvents", dependencies: ["BeaconAgentCore"]),
+        .target(name: "BeaconAgentMemory"),
         .testTarget(name: "BeaconAgentCoreTests", dependencies: ["BeaconAgentCore"]),
         .testTarget(
             name: "BeaconAgentPersistenceTests",
@@ -40,7 +42,8 @@ let package = Package(
         .testTarget(name: "BeaconAgentDeviceTests", dependencies: ["BeaconAgentDevice", "BeaconAgentCore"]),
         .testTarget(name: "BeaconAgentMCPTests", dependencies: ["BeaconAgentMCP", "BeaconAgentA2UI", "BeaconAgentCore"]),
         .testTarget(name: "BeaconAgentSwiftUITests", dependencies: ["BeaconAgentSwiftUI", "BeaconAgentA2UI", "BeaconAgentCore"]),
-        .testTarget(name: "BeaconAgentAppleEventsTests", dependencies: ["BeaconAgentAppleEvents", "BeaconAgentCore"])
+        .testTarget(name: "BeaconAgentAppleEventsTests", dependencies: ["BeaconAgentAppleEvents", "BeaconAgentCore"]),
+        .testTarget(name: "BeaconAgentMemoryTests", dependencies: ["BeaconAgentMemory"])
     ],
     swiftLanguageModes: [.v6]
 )
