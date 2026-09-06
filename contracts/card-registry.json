@@ -1,0 +1,387 @@
+{
+  "registryVersion": 1,
+  "fallback": {
+    "rendererId": "jianhao.read-only-fallback",
+    "supportedActions": [],
+    "support": {
+      "gateway": {"decode": true, "render": false, "interact": false},
+      "ios": {"decode": true, "render": true, "interact": false}
+    }
+  },
+  "cards": [
+    {
+      "kind": "food.review.v1",
+      "schemaVersion": 1,
+      "aliases": ["food.review"],
+      "dataContract": "cards/food.review.v1.schema.json",
+      "decoderId": "jianhao.food-review.v1",
+      "rendererId": "jianhao.food-review.native",
+      "supportedActions": ["food.review.edit", "food.review.confirm", "food.review.cancel"],
+      "entryPoints": ["gateway.image.stream", "gateway.chat.tool", "device.nutrition.draft", "legacy.assistant-envelope"],
+      "support": {
+        "gateway": {"decode": true, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "nutrition",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "exercise.review.v1",
+      "schemaVersion": 1,
+      "aliases": ["exercise.review"],
+      "dataContract": "cards/exercise.review.v1.schema.json",
+      "decoderId": "jianhao.exercise-review.v1",
+      "rendererId": "jianhao.exercise-review.native",
+      "supportedActions": ["exercise.review.update", "exercise.review.confirm", "exercise.review.cancel"],
+      "entryPoints": ["gateway.image.stream", "gateway.chat.tool", "device.activity.draft", "legacy.assistant-envelope"],
+      "support": {
+        "gateway": {"decode": true, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "activity",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "packaged_food.label_review.v1",
+      "schemaVersion": 1,
+      "aliases": ["packaged_food.label_review"],
+      "dataContract": "swift.PackagedFoodLabelReviewDraft",
+      "decoderId": "jianhao.packaged-food-label.v1",
+      "rendererId": "jianhao.packaged-food-label.native",
+      "supportedActions": ["edit", "confirm", "delete"],
+      "entryPoints": ["device.nutrition-label.draft", "legacy.assistant-envelope"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "nutrition",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "supplement.product_review.v1",
+      "schemaVersion": 1,
+      "aliases": ["supplement.product_review"],
+      "dataContract": "swift.SupplementProduct",
+      "decoderId": "jianhao.supplement-product.v1",
+      "rendererId": "jianhao.supplement-product.native",
+      "supportedActions": ["edit", "confirm", "delete"],
+      "entryPoints": ["device.supplement-product.draft", "legacy.assistant-envelope"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "supplement",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "supplement.intake_review.v1",
+      "schemaVersion": 1,
+      "aliases": ["supplement.intake_review"],
+      "dataContract": "swift.SupplementIntake",
+      "decoderId": "jianhao.supplement-intake.v1",
+      "rendererId": "jianhao.supplement-intake.native",
+      "supportedActions": ["edit", "confirm", "delete"],
+      "entryPoints": ["device.supplement-intake.draft", "legacy.assistant-envelope"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "supplement",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "tool.status.v1",
+      "schemaVersion": 1,
+      "aliases": ["tool.status"],
+      "dataContract": "swift.BeaconToolRun",
+      "decoderId": "beacon.tool-status.v1",
+      "rendererId": "jianhao.tool-status.compact",
+      "supportedActions": [],
+      "entryPoints": ["agent.tool-observation", "legacy.assistant-envelope"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "system",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "agent.task.v1",
+      "schemaVersion": 1,
+      "aliases": ["agent.task"],
+      "dataContract": "swift.AgentTaskPresentation",
+      "decoderId": "jianhao.agent-task.v1",
+      "rendererId": "jianhao.agent-task.compact",
+      "supportedActions": [],
+      "entryPoints": ["agent.run-progress", "legacy.assistant-envelope"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "system",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "training.session.draft.v1",
+      "schemaVersion": 1,
+      "aliases": ["training.plan.draft", "training.plan.draft@1"],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.training-session-a2ui.v1",
+      "rendererId": "jianhao.training-session.native",
+      "supportedActions": ["training.exercise.append", "training.exercise.replace", "training.exercise.remove", "training.exercise.adjust", "training.exercise.reorder", "training.plan.confirm", "training.plan.cancel"],
+      "entryPoints": ["device.training.draft", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "training",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "training.week.draft.v1",
+      "schemaVersion": 1,
+      "aliases": ["training.week.draft@1"],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.training-week-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": ["training.week.confirm", "surface.dismiss"],
+      "entryPoints": ["device.training-week.draft", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "training",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "profile.draft.v1",
+      "schemaVersion": 1,
+      "aliases": ["profile.draft"],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.profile-draft-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": ["profile.draft.confirm", "surface.dismiss"],
+      "entryPoints": ["device.profile.draft", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "health",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "exercise.replace.options.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.safe-summary.v1",
+      "rendererId": "jianhao.read-only-fallback",
+      "supportedActions": [],
+      "entryPoints": [],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "training",
+      "lifecycleState": null,
+      "releaseState": "fallback"
+    },
+    {
+      "kind": "activity.review.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.activity-review-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": ["activity.review.edit", "activity.review.confirm"],
+      "entryPoints": ["device.activity.draft", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "activity",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "health.query.result.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.health-query-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": [],
+      "entryPoints": ["device.health-query", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "health",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "sleep.summary.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.safe-summary.v1",
+      "rendererId": "jianhao.read-only-fallback",
+      "supportedActions": [],
+      "entryPoints": [],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "health",
+      "lifecycleState": null,
+      "releaseState": "fallback"
+    },
+    {
+      "kind": "progress.insight.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.safe-summary.v1",
+      "rendererId": "jianhao.read-only-fallback",
+      "supportedActions": [],
+      "entryPoints": [],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "health",
+      "lifecycleState": null,
+      "releaseState": "fallback"
+    },
+    {
+      "kind": "gym.equipment.review.v1",
+      "schemaVersion": 1,
+      "aliases": ["gym.equipment.review@1"],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.gym-equipment-review-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": ["gym.equipment.confirm", "gym.equipment.toggleExercise", "gym.equipment.createTrainingDraft"],
+      "entryPoints": ["device.gym-equipment-review", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "training",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "gym.equipment.catalog.v1",
+      "schemaVersion": 1,
+      "aliases": ["gym.equipment.catalog@1"],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.gym-equipment-catalog-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": ["gym.equipment.toggleExercise", "gym.equipment.createTrainingDraft"],
+      "entryPoints": ["device.gym-equipment-catalog", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "training",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "action.confirmation.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.safe-summary.v1",
+      "rendererId": "jianhao.read-only-fallback",
+      "supportedActions": [],
+      "entryPoints": [],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "system",
+      "lifecycleState": null,
+      "releaseState": "fallback"
+    },
+    {
+      "kind": "action.receipt.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.action-receipt-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": [],
+      "entryPoints": ["device.commit-receipt", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "system",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "error.recovery.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.error-recovery-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": ["agent.query.retry", "surface.dismiss"],
+      "entryPoints": ["agent.failure", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "system",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "sleep.summary.fallback.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "markdown.safe-summary.v1",
+      "decoderId": "jianhao.safe-summary.v1",
+      "rendererId": "jianhao.read-only-fallback",
+      "supportedActions": [],
+      "entryPoints": ["gateway.image.stream"],
+      "support": {
+        "gateway": {"decode": true, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "health",
+      "lifecycleState": null,
+      "releaseState": "fallback"
+    },
+    {
+      "kind": "unknown.fallback.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "markdown.safe-summary.v1",
+      "decoderId": "jianhao.safe-summary.v1",
+      "rendererId": "jianhao.read-only-fallback",
+      "supportedActions": [],
+      "entryPoints": ["gateway.card-fallback"],
+      "support": {
+        "gateway": {"decode": true, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "system",
+      "lifecycleState": null,
+      "releaseState": "fallback"
+    }
+  ]
+}

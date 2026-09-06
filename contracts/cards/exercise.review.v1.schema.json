@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beacon-agent.local/contracts/cards/exercise.review.v1.schema.json",
+  "title": "Exercise review card data",
+  "$defs": {
+    "partial": {
+      "type": "object",
+      "properties": {
+        "recordType": {"const": "exercise"},
+        "cardKind": {"const": "exercise.review.v1"},
+        "activityType": {"type": "string", "minLength": 1, "maxLength": 120},
+        "capturedAt": {"type": ["string", "null"], "maxLength": 64},
+        "confidence": {"type": "integer", "minimum": 1, "maximum": 100},
+        "reviewHint": {"type": "string", "maxLength": 800},
+        "reviewRequired": {"const": true},
+        "notes": {"type": "string", "maxLength": 1200},
+        "source": {"type": "string", "minLength": 1, "maxLength": 80},
+        "durationMinutes": {"type": "number", "minimum": 0, "maximum": 100000},
+        "distanceKilometers": {"type": "number", "minimum": 0, "maximum": 100000},
+        "caloriesBurned": {"type": "number", "minimum": 0, "maximum": 100000},
+        "metrics": {
+          "type": "object",
+          "maxProperties": 24,
+          "additionalProperties": {"type": "string", "maxLength": 160}
+        }
+      },
+      "required": ["recordType", "cardKind", "reviewRequired", "source"],
+      "additionalProperties": false
+    },
+    "final": {
+      "allOf": [
+        {"$ref": "#/$defs/partial"},
+        {"required": ["activityType", "confidence", "reviewHint", "notes"]}
+      ]
+    }
+  },
+  "$ref": "#/$defs/partial"
+}

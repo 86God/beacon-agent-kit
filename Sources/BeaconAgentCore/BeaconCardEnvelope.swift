@@ -51,6 +51,11 @@ public struct BeaconCardPrivacy: Codable, Equatable, Sendable {
 /// Presentation hint for generic card emphasis.
 public enum BeaconCardAccent: String, Codable, Sendable {
     case system
+    case nutrition
+    case training
+    case activity
+    case health
+    case supplement
     case success
     case warning
     case destructive

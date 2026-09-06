@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beacon-agent.local/contracts/cards/food.review.v1.schema.json",
+  "title": "Food review card data",
+  "$defs": {
+    "item": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "name": {"type": "string", "minLength": 1, "maxLength": 160},
+        "grams": {"type": "number", "minimum": 0, "maximum": 100000},
+        "calories": {"type": "number", "minimum": 0, "maximum": 100000},
+        "protein": {"type": "number", "minimum": 0, "maximum": 10000},
+        "carbs": {"type": "number", "minimum": 0, "maximum": 10000},
+        "fat": {"type": "number", "minimum": 0, "maximum": 10000},
+        "confidence": {"type": "integer", "minimum": 1, "maximum": 100},
+        "note": {"type": "string", "maxLength": 500}
+      },
+      "required": ["name", "grams", "calories", "protein", "carbs", "fat", "confidence", "note"],
+      "additionalProperties": false
+    },
+    "partial": {
+      "type": "object",
+      "properties": {
+        "recordType": {"const": "food"},
+        "cardKind": {"const": "food.review.v1"},
+        "mealName": {"type": "string", "minLength": 1, "maxLength": 80},
+        "capturedAt": {"type": ["string", "null"], "maxLength": 64},
+        "items": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/item"}},
+        "confidence": {"type": "integer", "minimum": 1, "maximum": 100},
+        "reviewHint": {"type": "string", "maxLength": 800},
+        "reviewRequired": {"const": true},
+        "source": {"type": "string", "minLength": 1, "maxLength": 80},
+        "totalCalories": {"type": "number", "minimum": 0, "maximum": 100000},
+        "protein": {"type": "number", "minimum": 0, "maximum": 10000},
+        "carbs": {"type": "number", "minimum": 0, "maximum": 10000},
+        "fat": {"type": "number", "minimum": 0, "maximum": 10000}
+      },
+      "required": ["recordType", "cardKind", "items", "reviewRequired", "source"],
+      "additionalProperties": false
+    },
+    "final": {
+      "allOf": [
+        {"$ref": "#/$defs/partial"},
+        {
+          "required": ["mealName", "items", "confidence", "reviewHint", "totalCalories", "protein", "carbs", "fat"],
+          "properties": {"items": {"minItems": 1}}
+        }
+      ]
+    }
+  },
+  "$ref": "#/$defs/partial"
+}

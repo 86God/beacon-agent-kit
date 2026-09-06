@@ -48,4 +48,19 @@ final class BeaconCardEnvelopeTests: XCTestCase {
 
         XCTAssertEqual(decoded, payload)
     }
+
+    func testDomainAccentsRoundTripWithoutPretendingToBeLifecycleStates() throws {
+        for accent in [
+            BeaconCardAccent.nutrition,
+            .training,
+            .activity,
+            .health,
+            .supplement,
+        ] {
+            let data = try JSONEncoder().encode(accent)
+            XCTAssertEqual(try JSONDecoder().decode(BeaconCardAccent.self, from: data), accent)
+            XCTAssertNotEqual(accent, .success)
+            XCTAssertNotEqual(accent, .warning)
+        }
+    }
 }
