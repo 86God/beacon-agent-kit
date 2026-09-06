@@ -205,6 +205,28 @@
       "validPayload": {"surfaceType": "error.recovery.v1", "rootType": "Column", "summary": "请重试，原有记录未改变"},
       "invalidPayload": {"surfaceType": "error.recovery.v1", "rootType": "RemoteHTML"},
       "invalidReason": "unsupported_component"
+    },
+    {
+      "kind": "memory.candidate.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": ["memory.confirm", "memory.dismiss"],
+      "validPayload": {"surfaceType": "memory.candidate.v1", "rootType": "Column", "summary": "每次训练最多 30 分钟"},
+      "invalidPayload": {"surfaceType": "memory.candidate.v1", "rootType": "RemoteHTML"},
+      "invalidReason": "unsupported_component"
+    },
+    {
+      "kind": "memory.receipt.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": [],
+      "validPayload": {"surfaceType": "memory.receipt.v1", "rootType": "Column", "summary": "已记住每次训练最多 30 分钟"},
+      "invalidPayload": {"surfaceType": "memory.receipt.v1", "rootType": "RemoteHTML"},
+      "invalidReason": "unsupported_component"
     }
   ]
 }

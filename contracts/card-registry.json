@@ -350,6 +350,40 @@
       "releaseState": "formal"
     },
     {
+      "kind": "memory.candidate.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.memory-candidate-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": ["memory.confirm", "memory.dismiss"],
+      "entryPoints": ["device.memory-candidate", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": true}
+      },
+      "domain": "memory",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
+      "kind": "memory.receipt.v1",
+      "schemaVersion": 1,
+      "aliases": [],
+      "dataContract": "a2ui.v0.9.1",
+      "decoderId": "jianhao.memory-receipt-a2ui.v1",
+      "rendererId": "jianhao.a2ui.host",
+      "supportedActions": [],
+      "entryPoints": ["device.memory-receipt", "a2ui.surface"],
+      "support": {
+        "gateway": {"decode": false, "render": false, "interact": false},
+        "ios": {"decode": true, "render": true, "interact": false}
+      },
+      "domain": "memory",
+      "lifecycleState": null,
+      "releaseState": "formal"
+    },
+    {
       "kind": "sleep.summary.fallback.v1",
       "schemaVersion": 1,
       "aliases": [],
