@@ -181,6 +181,20 @@ struct BeaconOutbox: Codable, Equatable, Sendable {
             threadId == nil || command.threadId == threadId
         }
     }
+
+    @discardableResult
+    mutating func remove(threadId: String) -> Int {
+        let originalCount = commands.count
+        commands.removeAll { $0.threadId == threadId }
+        return originalCount - commands.count
+    }
+
+    @discardableResult
+    mutating func remove(threadId: String, runId: String) -> Int {
+        let originalCount = commands.count
+        commands.removeAll { $0.threadId == threadId && $0.runId == runId }
+        return originalCount - commands.count
+    }
 }
 
 private struct BeaconOutboxCodingKey: CodingKey {

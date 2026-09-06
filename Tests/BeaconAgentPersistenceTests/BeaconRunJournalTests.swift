@@ -6,6 +6,26 @@ import BeaconAgentCore
 @Suite
 struct BeaconAgentPersistenceTests {
     @Test
+    func registeredRunSurvivesRestartBeforeFirstEvent() async throws {
+        let storage = MemoryPersistenceStorage()
+        let journal = try BeaconRunJournal(storage: storage)
+
+        #expect(try await journal.registerRun(threadId: "thread-a", runId: "run-a"))
+        #expect(try await !journal.registerRun(threadId: "thread-a", runId: "run-a"))
+
+        let restored = try BeaconRunJournal(storage: storage)
+        let runs = try await restored.runs()
+        #expect(runs == [
+            BeaconRunJournalRun(
+                threadId: "thread-a",
+                runId: "run-a",
+                cursor: -1,
+                status: "idle"
+            )
+        ])
+    }
+
+    @Test
     func duplicateReplayPersistsOneEventAndRestoresSameProjection() async throws {
         let storage = MemoryPersistenceStorage()
         let journal = try BeaconRunJournal(storage: storage)
@@ -117,6 +137,57 @@ struct BeaconAgentPersistenceTests {
         #expect(await journal.runIds(threadId: "thread-b") == ["run-b"])
         #expect(await journal.events(threadId: "thread-a", runId: "run-a").count == 1)
         #expect(await journal.events(threadId: "thread-a", runId: "run-b").isEmpty)
+    }
+
+    @Test
+    func deletingThreadRemovesRunsAndOutboxWithoutLaterResurrection() async throws {
+        let storage = MemoryPersistenceStorage()
+        let journal = try BeaconRunJournal(storage: storage)
+        try await journal.append(event(sequence: 0, runId: "run-a"), threadId: "thread-a")
+        try await journal.append(event(sequence: 0, runId: "run-b"), threadId: "thread-b")
+        try await journal.enqueue(
+            BeaconOutboxCommand(
+                idempotencyKey: "command-a",
+                commandId: "command-a",
+                threadId: "thread-a",
+                runId: "run-a",
+                payload: .approvalResume(approvalId: "approval-a", approved: true)
+            )
+        )
+
+        #expect(try await journal.deleteThread(threadId: "thread-a") == 2)
+        #expect(await journal.runIds(threadId: "thread-a").isEmpty)
+        #expect(await journal.pendingCommands(threadId: "thread-a").isEmpty)
+
+        try await journal.append(
+            event(sequence: 1, runId: "run-b", type: "run.finished"),
+            threadId: "thread-b"
+        )
+        let restored = try BeaconRunJournal(storage: storage)
+        #expect(await restored.runIds(threadId: "thread-a").isEmpty)
+        #expect(await restored.pendingCommands(threadId: "thread-a").isEmpty)
+        #expect(await restored.cursor(threadId: "thread-b", runId: "run-b") == 1)
+    }
+
+    @Test
+    func deletingOneRunKeepsOtherRunsInTheSameThread() async throws {
+        let storage = MemoryPersistenceStorage()
+        let journal = try BeaconRunJournal(storage: storage)
+        try await journal.append(event(sequence: 0, runId: "run-a"), threadId: "thread-a")
+        try await journal.append(event(sequence: 0, runId: "run-b"), threadId: "thread-a")
+        try await journal.enqueue(
+            BeaconOutboxCommand(
+                idempotencyKey: "command-a",
+                commandId: "command-a",
+                threadId: "thread-a",
+                runId: "run-a",
+                payload: .approvalResume(approvalId: "approval-a", approved: true)
+            )
+        )
+
+        #expect(try await journal.deleteRun(threadId: "thread-a", runId: "run-a") == 2)
+        #expect(await journal.runIds(threadId: "thread-a") == ["run-b"])
+        #expect(await journal.pendingCommands(threadId: "thread-a").isEmpty)
     }
 
     @Test

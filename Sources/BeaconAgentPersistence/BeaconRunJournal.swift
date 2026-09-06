@@ -16,6 +16,20 @@ public enum BeaconRunJournalError: Error, Equatable, Sendable {
     case nonContiguousEvent(expected: Int, actual: Int)
 }
 
+public struct BeaconRunJournalRun: Equatable, Sendable {
+    public let threadId: String
+    public let runId: String
+    public let cursor: Int
+    public let status: String
+
+    public init(threadId: String, runId: String, cursor: Int, status: String) {
+        self.threadId = threadId
+        self.runId = runId
+        self.cursor = cursor
+        self.status = status
+    }
+}
+
 public struct BeaconFilePersistenceStorage: BeaconAgentPersistenceStorage, Sendable {
     public let url: URL
 
@@ -131,6 +145,92 @@ public actor BeaconRunJournal {
             .filter { $0.threadId == threadId }
             .map(\.runId)
             .sorted()
+    }
+
+    /// Persists run ownership before the network request starts. A crash in
+    /// the gap before sequence zero can therefore resume the same run ID
+    /// without retaining the user's prompt.
+    @discardableResult
+    public func registerRun(threadId: String, runId: String) throws -> Bool {
+        do {
+            try BeaconAgentWireValidation.validateIdentifier(threadId, field: "threadId")
+            try BeaconAgentWireValidation.validateIdentifier(runId, field: "runId")
+        } catch {
+            throw BeaconRunJournalError.invalidRunIdentity
+        }
+        let key = Self.key(threadId: threadId, runId: runId)
+        guard document.runs[key] == nil else { return false }
+        var candidate = document
+        candidate.runs[key] = Record(
+            threadId: threadId,
+            runId: runId,
+            events: [],
+            cursor: -1
+        )
+        try persist(candidate)
+        document = candidate
+        return true
+    }
+
+    public func runs() throws -> [BeaconRunJournalRun] {
+        try document.runs.values.map { record in
+            let projection = try Self.replay(record.events)
+            return BeaconRunJournalRun(
+                threadId: record.threadId,
+                runId: record.runId,
+                cursor: record.cursor,
+                status: projection.status
+            )
+        }
+        .sorted {
+            if $0.threadId != $1.threadId { return $0.threadId < $1.threadId }
+            if $0.cursor != $1.cursor { return $0.cursor < $1.cursor }
+            return $0.runId < $1.runId
+        }
+    }
+
+    /// Removes every durable run event and pending command owned by a thread.
+    /// Mutating the live actor document as part of the same compare-and-save
+    /// boundary prevents a retained journal from recreating deleted data later.
+    @discardableResult
+    public func deleteThread(threadId: String) throws -> Int {
+        do {
+            try BeaconAgentWireValidation.validateIdentifier(threadId, field: "threadId")
+        } catch {
+            throw BeaconRunJournalError.invalidRunIdentity
+        }
+        var candidate = document
+        let runKeys = candidate.runs.compactMap { key, record in
+            record.threadId == threadId ? key : nil
+        }
+        runKeys.forEach { candidate.runs.removeValue(forKey: $0) }
+        let removedCommands = candidate.outbox.remove(threadId: threadId)
+        let removedCount = runKeys.count + removedCommands
+        guard removedCount > 0 else { return 0 }
+        try persist(candidate)
+        document = candidate
+        return removedCount
+    }
+
+    /// Removes one cancelled run and its pending commands without touching
+    /// completed or independent runs owned by the same conversation.
+    @discardableResult
+    public func deleteRun(threadId: String, runId: String) throws -> Int {
+        do {
+            try BeaconAgentWireValidation.validateIdentifier(threadId, field: "threadId")
+            try BeaconAgentWireValidation.validateIdentifier(runId, field: "runId")
+        } catch {
+            throw BeaconRunJournalError.invalidRunIdentity
+        }
+        var candidate = document
+        let key = Self.key(threadId: threadId, runId: runId)
+        let removedRun = candidate.runs.removeValue(forKey: key) == nil ? 0 : 1
+        let removedCommands = candidate.outbox.remove(threadId: threadId, runId: runId)
+        let removedCount = removedRun + removedCommands
+        guard removedCount > 0 else { return 0 }
+        try persist(candidate)
+        document = candidate
+        return removedCount
     }
 
     @discardableResult
