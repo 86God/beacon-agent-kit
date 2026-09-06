@@ -74,6 +74,45 @@ struct BeaconMemoryRepositoryTests {
         #expect(BeaconMemoryPolicy.activeRecords(in: snapshot, at: now).isEmpty)
     }
 
+    @Test("paused records remain stored but never enter active recall")
+    func pausedRecordsStayOutOfRecall() throws {
+        let now = Date(timeIntervalSinceReferenceDate: 100)
+        let active = record(
+            "availability:thirty-minutes",
+            reviewAt: now.addingTimeInterval(100),
+            expiresAt: now.addingTimeInterval(200)
+        )
+        let paused = BeaconMemoryRecord(
+            id: active.id,
+            scopeID: active.scopeID,
+            semanticKey: active.semanticKey,
+            kind: active.kind,
+            value: active.value,
+            displaySummary: active.displaySummary,
+            purpose: active.purpose,
+            sensitivity: active.sensitivity,
+            source: active.source,
+            status: .paused,
+            evidenceReferences: active.evidenceReferences,
+            authorizationReferences: active.authorizationReferences,
+            reviewAt: active.reviewAt,
+            expiresAt: active.expiresAt,
+            confirmedAt: active.confirmedAt,
+            createdAt: active.createdAt,
+            updatedAt: now,
+            deletedAt: nil,
+            revision: active.revision
+        )
+        let snapshot = BeaconMemorySnapshot(
+            scopeID: active.scopeID,
+            revision: 1,
+            records: [paused]
+        )
+
+        #expect(BeaconMemoryPolicy.disposition(of: paused, at: now) == .paused)
+        #expect(BeaconMemoryPolicy.activeRecords(in: snapshot, at: now).isEmpty)
+    }
+
     @Test("serialized concurrent upserts do not lose distinct keys")
     func concurrentUpserts() async throws {
         let root = try temporaryDirectory()

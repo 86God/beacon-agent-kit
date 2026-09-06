@@ -7,6 +7,7 @@ public enum BeaconMemoryPolicy {
     ) -> BeaconMemoryStatus {
         guard record.status != .deleted else { return .deleted }
         guard record.expiresAt > date else { return .expired }
+        guard record.status != .paused else { return .paused }
         guard record.status == .active, record.reviewAt > date else { return .needsReview }
         return .active
     }

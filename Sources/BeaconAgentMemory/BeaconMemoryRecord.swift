@@ -2,6 +2,7 @@ import Foundation
 
 public enum BeaconMemoryStatus: String, Codable, Equatable, Sendable {
     case active
+    case paused
     case needsReview = "needs_review"
     case expired
     case deleted
