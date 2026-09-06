@@ -118,6 +118,28 @@ struct BeaconArchiveCryptoTests {
         }
     }
 
+    @Test("resumable transport descriptor preserves committed and uploaded state")
+    func transportDescriptorRoundTrip() throws {
+        let descriptor = BeaconBackupUploadDescriptor(
+            metadata: BeaconRemoteBackupMetadata(
+                backupID: "backup-a",
+                profileID: "profile-a",
+                keyID: "key-a",
+                createdAt: Date(timeIntervalSinceReferenceDate: 10),
+                byteCount: 12
+            ),
+            chunkCount: 3,
+            chunkByteCount: 4,
+            archiveSHA256: String(repeating: "a", count: 64)
+        )
+        let state = BeaconBackupUploadState(uploadedChunkIndices: [0, 2], isCommitted: false)
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
+        #expect(try decoder.decode(BeaconBackupUploadDescriptor.self, from: encoder.encode(descriptor)) == descriptor)
+        #expect(try decoder.decode(BeaconBackupUploadState.self, from: encoder.encode(state)) == state)
+    }
+
     private func fixture(key: SymmetricKey) throws -> BeaconBackupBundle {
         try BeaconBackupBundle.make(
             backupID: "backup-a",
