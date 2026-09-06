@@ -696,29 +696,61 @@ class NativeLangGraphAgentRuntime:
         action = private.final_actions.pop(state["run_id"], None) if private is not None else None
         if action is None:
             raise RuntimeFailure("private_context_replay_required", "Generated response must be replayed")
-        chunks = (action.text,) if isinstance(action, FinishAction) else tuple(action.chunks)
+        structured_output = (
+            isinstance(action, FinishAction) and action.output_kind == "structured"
+        )
+        if structured_output and (private is None or not private.observations):
+            raise RuntimeFailure(
+                "missing_structured_output",
+                "Structured completion requires a validated observation",
+            )
+        chunks = (
+            ()
+            if structured_output
+            else (action.text,)
+            if isinstance(action, FinishAction)
+            else iter(action.chunks)
+        )
         # The iOS consumer keys incremental Markdown rendering by messageId and
         # finalizes it from finalText.  Keep that public stream contract stable
         # while the checkpoint remains limited to the safe graph state.
         message_id = f"{state['run_id']}:final"
-        next_sequence = self._emit(
-            state,
-            AgentEventType.TEXT_START,
-            {"messageId": message_id},
-        )
+        next_sequence = state["next_sequence"]
         text = ""
+        pending_chunks: list[str] = []
+        text_started = False
         for chunk in chunks:
+            if not isinstance(chunk, str):
+                raise RuntimeFailure("invalid_final_output", "Generated response was not text")
             text += chunk
+            if not text_started:
+                pending_chunks.append(chunk)
+                if not text.strip():
+                    continue
+                next_sequence = self._emit(
+                    {**state, "next_sequence": next_sequence},
+                    AgentEventType.TEXT_START,
+                    {"messageId": message_id},
+                )
+                text_started = True
+                chunks_to_emit = pending_chunks
+                pending_chunks = []
+            else:
+                chunks_to_emit = [chunk]
+            for emitted_chunk in chunks_to_emit:
+                next_sequence = self._emit(
+                    {**state, "next_sequence": next_sequence},
+                    AgentEventType.TEXT_DELTA,
+                    {"messageId": message_id, "delta": emitted_chunk},
+                )
+        if not text_started and not structured_output:
+            raise RuntimeFailure("empty_final_output", "Generated response was empty")
+        if text_started:
             next_sequence = self._emit(
                 {**state, "next_sequence": next_sequence},
-                AgentEventType.TEXT_DELTA,
-                {"messageId": message_id, "delta": chunk},
+                AgentEventType.TEXT_END,
+                {"messageId": message_id, "finalText": text},
             )
-        next_sequence = self._emit(
-            {**state, "next_sequence": next_sequence},
-            AgentEventType.TEXT_END,
-            {"messageId": message_id, "finalText": text},
-        )
         next_sequence = self._emit(
             {**state, "next_sequence": next_sequence},
             AgentEventType.STEP_FINISHED,
@@ -727,11 +759,13 @@ class NativeLangGraphAgentRuntime:
         next_sequence = self._emit(
             {**state, "next_sequence": next_sequence},
             AgentEventType.RUN_FINISHED,
-            {"status": "completed"},
+            {"status": "completed", "resultKind": "success"},
         )
         if private is not None:
             private.results[state["run_id"]] = AgentRunResult(
-                state["run_id"], "finished", final_text=text
+                state["run_id"],
+                "finished",
+                final_text=text,
             )
         return {"next_sequence": next_sequence, "phase": "finished", "action_kind": ""}
 

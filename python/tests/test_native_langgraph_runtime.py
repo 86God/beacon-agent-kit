@@ -6,6 +6,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from threading import Event, Thread
 
 import pytest
 from beacon_agent_runtime.capabilities import CapabilityManifest
@@ -14,6 +15,7 @@ from beacon_agent_runtime.events import (
     FinishAction,
     ListEventSink,
     RunContext,
+    StreamingFinishAction,
     ToolRequestAction,
 )
 import beacon_agent_runtime.native_langgraph_runtime as native_runtime_module
@@ -275,6 +277,104 @@ def test_native_langgraph_preserves_a_safe_provider_failure_code(
     assert result.error_code == "model_selected_unavailable_capability"
     assert [event.sequence for event in sink.events] == list(range(len(sink.events)))
     assert sink.events[-1].type == "run.error"
+
+
+def test_native_langgraph_finalizer_rejects_empty_assistant_output(
+    tmp_path: Path,
+) -> None:
+    sink = ListEventSink()
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "empty-final-output.sqlite3",
+        model=_ScriptedModel([FinishAction("   ")]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=sink,
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", ())),
+        limits=AgentRuntimeLimits(),
+    )
+
+    result = runtime.start(
+        run_id="empty-final-output",
+        query="给我建议",
+        authorized_scopes=set(),
+    )
+
+    assert result.status == "error"
+    assert result.error_code == "empty_final_output"
+    assert [str(event.type) for event in sink.events][-1] == "run.error"
+    assert not any(str(event.type) == "run.finished" for event in sink.events)
+
+
+def test_native_langgraph_structured_finish_requires_validated_tool_output(
+    tmp_path: Path,
+) -> None:
+    sink = ListEventSink()
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "missing-structured-output.sqlite3",
+        model=_ScriptedModel([FinishAction("", output_kind="structured")]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=sink,
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", ())),
+        limits=AgentRuntimeLimits(),
+    )
+
+    result = runtime.start(
+        run_id="missing-structured-output",
+        query="生成卡片",
+        authorized_scopes=set(),
+    )
+
+    assert result.status == "error"
+    assert result.error_code == "missing_structured_output"
+    assert [str(event.type) for event in sink.events][-1] == "run.error"
+
+
+def test_native_langgraph_streams_first_text_delta_before_provider_finishes(
+    tmp_path: Path,
+) -> None:
+    provider_waiting = Event()
+    release_provider = Event()
+    completed = Event()
+    sink = ListEventSink()
+
+    def chunks():
+        yield "先看到这一段"
+        provider_waiting.set()
+        assert release_provider.wait(timeout=2)
+        yield "，再看到结尾。"
+
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "live-final-output.sqlite3",
+        model=_ScriptedModel([StreamingFinishAction(chunks())]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=sink,
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", ())),
+        limits=AgentRuntimeLimits(),
+    )
+
+    def run() -> None:
+        runtime.start(
+            run_id="live-final-output",
+            query="给我建议",
+            authorized_scopes=set(),
+        )
+        completed.set()
+
+    Thread(target=run, daemon=True).start()
+    assert provider_waiting.wait(timeout=1)
+    assert any(
+        str(event.type) == "text.delta"
+        and event.payload.get("delta") == "先看到这一段"
+        for event in sink.events
+    )
+    assert not completed.is_set()
+
+    release_provider.set()
+    assert completed.wait(timeout=1)
+    event_types = [str(event.type) for event in sink.events]
+    assert event_types.index("text.delta") < event_types.index("run.finished")
 
 
 def test_native_langgraph_preserves_a_safe_server_tool_failure_code(

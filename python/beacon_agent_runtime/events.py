@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Protocol
+from typing import Any, Iterable, Literal, Protocol
 
 from .protocol import AgentEvent, AgentEventType
 
@@ -30,6 +30,7 @@ class ApprovalInterruptAction:
 @dataclass(frozen=True)
 class FinishAction:
     text: str
+    output_kind: Literal["text", "structured"] = "text"
 
 
 @dataclass(frozen=True)
