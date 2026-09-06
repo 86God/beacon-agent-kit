@@ -5,6 +5,7 @@ public enum BeaconAgentReplayError: Error, Equatable, Sendable {
     case eventCollision(String)
     case sequenceCollision(Int)
     case mixedRunIds
+    case mixedTurnIds
     case eventAfterTerminal(Int)
     case blankField(String)
     case fieldCharacterLimit(field: String, actual: Int, maximum: Int)
@@ -17,6 +18,9 @@ public enum BeaconAgentReplayError: Error, Equatable, Sendable {
 /// Deterministic, transport-independent projection of an ordered v0.2 event stream.
 public struct BeaconAgentStateV2: Sendable {
     public private(set) var runId: String?
+    public private(set) var turnId: String?
+    public private(set) var attemptId: String?
+    public private(set) var segmentId: String?
     public private(set) var nextSequence = 0
     public private(set) var status = "idle"
 
@@ -40,6 +44,20 @@ public struct BeaconAgentStateV2: Sendable {
             throw BeaconAgentReplayError.unsupportedSchemaVersion(event.schemaVersion)
         }
         try event.validateWireBounds()
+        let previousNextSequence = nextSequence
+        var candidate = self
+        do {
+            try candidate.ingestValidated(event)
+            self = candidate
+        } catch {
+            if candidate.nextSequence > previousNextSequence {
+                self = candidate
+            }
+            throw error
+        }
+    }
+
+    private mutating func ingestValidated(_ event: BeaconAgentEventV2) throws {
         let fingerprint = try canonicalData(event)
         if let previous = seen[event.eventId] {
             guard previous == fingerprint else {
@@ -49,6 +67,9 @@ public struct BeaconAgentStateV2: Sendable {
         }
         if let runId, runId != event.runId {
             throw BeaconAgentReplayError.mixedRunIds
+        }
+        if let turnId, let eventTurnId = event.turnId, turnId != eventTurnId {
+            throw BeaconAgentReplayError.mixedTurnIds
         }
         if terminalSequence != nil {
             throw BeaconAgentReplayError.eventAfterTerminal(event.sequence)
@@ -62,9 +83,19 @@ public struct BeaconAgentStateV2: Sendable {
 
         seen[event.eventId] = fingerprint
         buffer[event.sequence] = event
-        while let current = buffer.removeValue(forKey: nextSequence) {
-            try reduce(current)
-            nextSequence += 1
+        try validateBufferedIdentity()
+        while let current = buffer[nextSequence] {
+            var reductionCandidate = self
+            reductionCandidate.buffer.removeValue(forKey: nextSequence)
+            do {
+                try reductionCandidate.reduce(current)
+            } catch {
+                buffer.removeValue(forKey: nextSequence)
+                seen.removeValue(forKey: current.eventId)
+                throw error
+            }
+            reductionCandidate.nextSequence += 1
+            self = reductionCandidate
             if terminalSequence != nil {
                 for lateEvent in buffer.values {
                     seen.removeValue(forKey: lateEvent.eventId)
@@ -75,8 +106,22 @@ public struct BeaconAgentStateV2: Sendable {
         }
     }
 
+    private func validateBufferedIdentity() throws {
+        var runIds = Set(buffer.values.map(\.runId))
+        if let runId { runIds.insert(runId) }
+        guard runIds.count <= 1 else {
+            throw BeaconAgentReplayError.mixedRunIds
+        }
+
+        var turnIds = Set(buffer.values.compactMap(\.turnId))
+        if let turnId { turnIds.insert(turnId) }
+        guard turnIds.count <= 1 else {
+            throw BeaconAgentReplayError.mixedTurnIds
+        }
+    }
+
     public func normalizedJSON() throws -> String {
-        let value = BeaconJSONValue.object([
+        var projection: [String: BeaconJSONValue] = [
             "activities": .object(activities.mapValues(BeaconJSONValue.object)),
             "approvals": .object(approvals.mapValues(BeaconJSONValue.object)),
             "bufferedSequences": .array(buffer.keys.sorted().map { .number(Double($0)) }),
@@ -90,7 +135,11 @@ public struct BeaconAgentStateV2: Sendable {
             "surfaces": .object(surfaces.mapValues { $0.jsonValue }),
             "text": .object(text.mapValues(BeaconJSONValue.string)),
             "tools": .object(tools.mapValues(BeaconJSONValue.object))
-        ])
+        ]
+        if let turnId { projection["turnId"] = .string(turnId) }
+        if let attemptId { projection["attemptId"] = .string(attemptId) }
+        if let segmentId { projection["segmentId"] = .string(segmentId) }
+        let value = BeaconJSONValue.object(projection)
         let data = try canonicalData(value)
         guard let string = String(data: data, encoding: .utf8) else {
             throw BeaconAgentReplayError.malformedPayload("normalized JSON encoding")
@@ -102,6 +151,11 @@ public struct BeaconAgentStateV2: Sendable {
         if runId == nil {
             runId = event.runId
         }
+        if turnId == nil {
+            turnId = event.turnId
+        }
+        attemptId = event.attemptId ?? attemptId
+        segmentId = event.segmentId ?? segmentId
         let payload = event.payload
         switch event.type {
         case "run.started":
@@ -307,14 +361,18 @@ private func applying(
 }
 
 private func eventValue(_ event: BeaconAgentEventV2) -> BeaconJSONValue {
-    .object([
+    var object: [String: BeaconJSONValue] = [
         "eventId": .string(event.eventId),
         "payload": .object(event.payload),
         "runId": .string(event.runId),
         "schemaVersion": .number(Double(event.schemaVersion)),
         "sequence": .number(Double(event.sequence)),
         "type": .string(event.type)
-    ])
+    ]
+    if let turnId = event.turnId { object["turnId"] = .string(turnId) }
+    if let attemptId = event.attemptId { object["attemptId"] = .string(attemptId) }
+    if let segmentId = event.segmentId { object["segmentId"] = .string(segmentId) }
+    return .object(object)
 }
 
 private func canonicalData<T: Encodable>(_ value: T) throws -> Data {

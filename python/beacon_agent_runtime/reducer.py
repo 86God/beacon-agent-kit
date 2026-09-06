@@ -85,6 +85,9 @@ class AgentStateReducer:
     """Buffers gaps and reduces each accepted event exactly once."""
 
     run_id: str | None = None
+    turn_id: str | None = None
+    attempt_id: str | None = None
+    segment_id: str | None = None
     next_sequence: int = 0
     status: str = "idle"
     activities: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -103,6 +106,21 @@ class AgentStateReducer:
     def ingest(self, event: AgentEvent) -> None:
         event = AgentEvent.model_validate(event.model_dump(by_alias=True, mode="json"))
         validate_payload_wire_budget(event.payload)
+        previous_next_sequence = self.next_sequence
+        candidate = deepcopy(self)
+        try:
+            candidate._ingest_validated(event)
+        except Exception:
+            if candidate.next_sequence > previous_next_sequence:
+                self._commit(candidate)
+            raise
+        self._commit(candidate)
+
+    def _commit(self, candidate: AgentStateReducer) -> None:
+        self.__dict__.clear()
+        self.__dict__.update(candidate.__dict__)
+
+    def _ingest_validated(self, event: AgentEvent) -> None:
         document = _event_document(event)
         fingerprint = _canonical(document)
         previous = self._seen.get(event.event_id)
@@ -112,6 +130,12 @@ class AgentStateReducer:
             return
         if self.run_id is not None and event.run_id != self.run_id:
             raise AgentReplayError("one reducer cannot mix run IDs")
+        if (
+            self.turn_id is not None
+            and event.turn_id is not None
+            and event.turn_id != self.turn_id
+        ):
+            raise AgentReplayError("one reducer cannot mix turn IDs")
         if self._terminal_sequence is not None:
             raise AgentReplayError(
                 f"event after terminal sequence: {event.sequence}"
@@ -124,18 +148,44 @@ class AgentStateReducer:
 
         self._seen[event.event_id] = fingerprint
         self._buffer[event.sequence] = event
+        self._validate_buffered_identity()
         while self.next_sequence in self._buffer:
-            current = self._buffer.pop(self.next_sequence)
-            self._reduce(current)
-            self.next_sequence += 1
+            current = self._buffer[self.next_sequence]
+            reduction_candidate = deepcopy(self)
+            reduction_candidate._buffer.pop(self.next_sequence)
+            try:
+                reduction_candidate._reduce(current)
+            except Exception:
+                self._buffer.pop(self.next_sequence)
+                self._seen.pop(current.event_id, None)
+                raise
+            reduction_candidate.next_sequence += 1
+            self._commit(reduction_candidate)
             if self._terminal_sequence is not None:
                 for late_event in self._buffer.values():
                     self._seen.pop(late_event.event_id, None)
                 self._buffer.clear()
                 break
 
+    def _validate_buffered_identity(self) -> None:
+        run_ids = {event.run_id for event in self._buffer.values()}
+        if self.run_id is not None:
+            run_ids.add(self.run_id)
+        if len(run_ids) > 1:
+            raise AgentReplayError("one reducer cannot mix run IDs")
+
+        turn_ids = {
+            event.turn_id
+            for event in self._buffer.values()
+            if event.turn_id is not None
+        }
+        if self.turn_id is not None:
+            turn_ids.add(self.turn_id)
+        if len(turn_ids) > 1:
+            raise AgentReplayError("one reducer cannot mix turn IDs")
+
     def normalized(self) -> dict[str, Any]:
-        return {
+        projection = {
             "activities": deepcopy(self.activities),
             "approvals": deepcopy(self.approvals),
             "bufferedSequences": sorted(self._buffer),
@@ -150,6 +200,13 @@ class AgentStateReducer:
             "text": deepcopy(self.text),
             "tools": deepcopy(self.tools),
         }
+        if self.turn_id is not None:
+            projection["turnId"] = self.turn_id
+        if self.attempt_id is not None:
+            projection["attemptId"] = self.attempt_id
+        if self.segment_id is not None:
+            projection["segmentId"] = self.segment_id
+        return projection
 
     def normalized_json(self) -> str:
         return _canonical(self.normalized())
@@ -157,6 +214,10 @@ class AgentStateReducer:
     def _reduce(self, event: AgentEvent) -> None:
         if self.run_id is None:
             self.run_id = event.run_id
+        if self.turn_id is None:
+            self.turn_id = event.turn_id
+        self.attempt_id = event.attempt_id or self.attempt_id
+        self.segment_id = event.segment_id or self.segment_id
         event_type = str(event.type)
         payload = deepcopy(event.payload)
 

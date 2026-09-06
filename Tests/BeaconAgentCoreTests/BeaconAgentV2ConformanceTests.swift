@@ -336,11 +336,237 @@ struct BeaconAgentV2ConformanceTests {
         let characterCounting = try #require(object["characterCounting"] as? [String: Any])
         let blankCodePoints = try #require(characterCounting["blankCodePoints"] as? [String])
         let payloadSizing = try #require(object["payloadSizing"] as? [String: Any])
+        let optionalEnvelopeFields = try #require(object["optionalEnvelopeFields"] as? [String])
+        let identifierSemantics = try #require(object["identifierSemantics"] as? [String: String])
 
         #expect(blankCodePoints.contains("001C-0020"))
         #expect(blankCodePoints.contains("2000-200B"))
         #expect(payloadSizing["algorithm"] as? String == "decoded-json-structural-budget-v1")
         #expect(payloadSizing["numberBytes"] as? Int == 32)
+        #expect(optionalEnvelopeFields == ["turnId", "attemptId", "segmentId"])
+        #expect(identifierSemantics["toolCallId"]?.hasPrefix("payload_identifier") == true)
+        #expect(identifierSemantics["commandId"]?.hasPrefix("payload_identifier") == true)
+    }
+
+    @Test
+    func executionIdentityFixtureMatchesSharedGoldenJSON() throws {
+        var state = BeaconAgentStateV2()
+        for event in try loadContractEvents("execution-identity-run.jsonl") {
+            try state.ingest(event)
+        }
+        let expected = try String(
+            contentsOf: contractFixtureDirectory
+                .appendingPathComponent("execution-identity-run.normalized.json"),
+            encoding: .utf8
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        #expect(try state.normalizedJSON() == expected)
+    }
+
+    @Test
+    func blankExecutionIdentityFailsBeforeProjectionChanges() throws {
+        let document = """
+        {"schemaVersion":2,"eventId":"identity-invalid","runId":"run-identity","turnId":"\u{200B}","attemptId":"attempt-1","segmentId":"segment-1","sequence":0,"type":"run.started","payload":{}}
+        """
+        let event = try JSONDecoder().decode(BeaconAgentEventV2.self, from: Data(document.utf8))
+        var state = BeaconAgentStateV2()
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(event)
+        }
+        #expect(state.nextSequence == 0)
+    }
+
+    @Test
+    func mixedTurnIdentityFailsWithoutChangingProjection() throws {
+        var state = BeaconAgentStateV2()
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "identity-turn-a",
+                runId: "run-identity",
+                turnId: "turn-a",
+                attemptId: "attempt-1",
+                segmentId: "segment-1",
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            )
+        )
+        let validProjection = try state.normalizedJSON()
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(
+                BeaconAgentEventV2(
+                    schemaVersion: 2,
+                    eventId: "identity-turn-b",
+                    runId: "run-identity",
+                    turnId: "turn-b",
+                    attemptId: "attempt-1",
+                    segmentId: "segment-1",
+                    sequence: 1,
+                    type: "step.started",
+                    payload: [:]
+                )
+            )
+        }
+        #expect(try state.normalizedJSON() == validProjection)
+    }
+
+    @Test
+    func outOfOrderIdentityConflictFailsWithoutChangingBufferedProjection() throws {
+        var state = BeaconAgentStateV2()
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "identity-late",
+                runId: "run-a",
+                turnId: "turn-a",
+                sequence: 1,
+                type: "step.started",
+                payload: [:]
+            )
+        )
+        let bufferedProjection = try state.normalizedJSON()
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(
+                BeaconAgentEventV2(
+                    schemaVersion: 2,
+                    eventId: "identity-first",
+                    runId: "run-b",
+                    turnId: "turn-b",
+                    sequence: 0,
+                    type: "run.started",
+                    payload: [:]
+                )
+            )
+        }
+        #expect(try state.normalizedJSON() == bufferedProjection)
+    }
+
+    @Test
+    func malformedEventRollsBackIdentityAndDuplicateBookkeeping() throws {
+        var state = BeaconAgentStateV2()
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "identity-start",
+                runId: "run-atomic",
+                turnId: "turn-atomic",
+                attemptId: "attempt-1",
+                segmentId: "segment-1",
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            )
+        )
+        let validProjection = try state.normalizedJSON()
+        let malformed = BeaconAgentEventV2(
+            schemaVersion: 2,
+            eventId: "identity-delta",
+            runId: "run-atomic",
+            turnId: "turn-atomic",
+            attemptId: "attempt-2",
+            segmentId: "segment-2",
+            sequence: 1,
+            type: "text.delta",
+            payload: ["delta": .string("hello")]
+        )
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(malformed)
+        }
+        #expect(try state.normalizedJSON() == validProjection)
+
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "identity-delta",
+                runId: "run-atomic",
+                turnId: "turn-atomic",
+                attemptId: "attempt-2",
+                segmentId: "segment-2",
+                sequence: 1,
+                type: "text.delta",
+                payload: [
+                    "messageId": .string("message-atomic"),
+                    "delta": .string("hello")
+                ]
+            )
+        )
+        #expect(state.attemptId == "attempt-2")
+        #expect(state.segmentId == "segment-2")
+        #expect(try state.normalizedJSON().contains("message-atomic"))
+    }
+
+    @Test
+    func bufferedMalformedEventIsEvictedWhenGapCloses() throws {
+        var state = BeaconAgentStateV2()
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "buffered-delta",
+                runId: "run-buffered-invalid",
+                turnId: "turn-buffered-invalid",
+                attemptId: "attempt-2",
+                segmentId: "segment-2",
+                sequence: 1,
+                type: "text.delta",
+                payload: ["delta": .string("hello")]
+            )
+        )
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(
+                BeaconAgentEventV2(
+                    schemaVersion: 2,
+                    eventId: "buffered-start",
+                    runId: "run-buffered-invalid",
+                    turnId: "turn-buffered-invalid",
+                    attemptId: "attempt-1",
+                    segmentId: "segment-1",
+                    sequence: 0,
+                    type: "run.started",
+                    payload: [:]
+                )
+            )
+        }
+
+        #expect(state.nextSequence == 1)
+        #expect(state.attemptId == "attempt-1")
+        #expect(state.segmentId == "segment-1")
+        #expect(!(try state.normalizedJSON()).contains("\"bufferedSequences\":[1]"))
+
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "buffered-delta",
+                runId: "run-buffered-invalid",
+                turnId: "turn-buffered-invalid",
+                attemptId: "attempt-2",
+                segmentId: "segment-2",
+                sequence: 1,
+                type: "text.delta",
+                payload: [
+                    "messageId": .string("message-buffered-invalid"),
+                    "delta": .string("hello")
+                ]
+            )
+        )
+        #expect(state.nextSequence == 2)
+        #expect(try state.normalizedJSON().contains("message-buffered-invalid"))
+    }
+
+    @Test
+    func decoderRejectsUnknownTopLevelEnvelopeFields() throws {
+        let document = """
+        {"schemaVersion":2,"eventId":"strict-0","runId":"run-strict","sequence":0,"type":"tool.start","toolCallId":"wrong-layer","payload":{"toolCallId":"tool-1"}}
+        """
+
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(BeaconAgentEventV2.self, from: Data(document.utf8))
+        }
     }
 
     private var fixtureDirectory: URL {
@@ -351,9 +577,26 @@ struct BeaconAgentV2ConformanceTests {
             .appendingPathComponent("conformance/fixtures", isDirectory: true)
     }
 
+    private var contractFixtureDirectory: URL {
+        fixtureDirectory
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("contracts/fixtures", isDirectory: true)
+    }
+
     private func loadEvents(_ name: String) throws -> [BeaconAgentEventV2] {
         let text = try String(
             contentsOf: fixtureDirectory.appendingPathComponent(name),
+            encoding: .utf8
+        )
+        return try text
+            .split(whereSeparator: \.isNewline)
+            .map { try JSONDecoder().decode(BeaconAgentEventV2.self, from: Data($0.utf8)) }
+    }
+
+    private func loadContractEvents(_ name: String) throws -> [BeaconAgentEventV2] {
+        let text = try String(
+            contentsOf: contractFixtureDirectory.appendingPathComponent(name),
             encoding: .utf8
         )
         return try text

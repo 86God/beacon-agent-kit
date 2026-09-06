@@ -13,6 +13,9 @@ public struct BeaconAgentEventV2: Codable, Equatable, Sendable {
     public let schemaVersion: Int
     public let eventId: String
     public let runId: String
+    public let turnId: String?
+    public let attemptId: String?
+    public let segmentId: String?
     public let sequence: Int
     public let type: String
     public let payload: [String: BeaconJSONValue]
@@ -21,6 +24,9 @@ public struct BeaconAgentEventV2: Codable, Equatable, Sendable {
         schemaVersion: Int,
         eventId: String,
         runId: String,
+        turnId: String? = nil,
+        attemptId: String? = nil,
+        segmentId: String? = nil,
         sequence: Int,
         type: String,
         payload: [String: BeaconJSONValue]
@@ -28,9 +34,60 @@ public struct BeaconAgentEventV2: Codable, Equatable, Sendable {
         self.schemaVersion = schemaVersion
         self.eventId = eventId
         self.runId = runId
+        self.turnId = turnId
+        self.attemptId = attemptId
+        self.segmentId = segmentId
         self.sequence = sequence
         self.type = type
         self.payload = payload
+    }
+
+    private enum CodingKeys: String, CodingKey, CaseIterable {
+        case schemaVersion
+        case eventId
+        case runId
+        case turnId
+        case attemptId
+        case segmentId
+        case sequence
+        case type
+        case payload
+    }
+
+    public init(from decoder: Decoder) throws {
+        let rawContainer = try decoder.container(keyedBy: BeaconWireCodingKey.self)
+        let allowedKeys = Set(CodingKeys.allCases.map(\.rawValue))
+        if let unknownKey = rawContainer.allKeys.first(where: { !allowedKeys.contains($0.stringValue) }) {
+            throw DecodingError.dataCorruptedError(
+                forKey: unknownKey,
+                in: rawContainer,
+                debugDescription: "unknown top-level event field: \(unknownKey.stringValue)"
+            )
+        }
+
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        eventId = try container.decode(String.self, forKey: .eventId)
+        runId = try container.decode(String.self, forKey: .runId)
+        turnId = try container.decodeIfPresent(String.self, forKey: .turnId)
+        attemptId = try container.decodeIfPresent(String.self, forKey: .attemptId)
+        segmentId = try container.decodeIfPresent(String.self, forKey: .segmentId)
+        sequence = try container.decode(Int.self, forKey: .sequence)
+        type = try container.decode(String.self, forKey: .type)
+        payload = try container.decode([String: BeaconJSONValue].self, forKey: .payload)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(eventId, forKey: .eventId)
+        try container.encode(runId, forKey: .runId)
+        try container.encodeIfPresent(turnId, forKey: .turnId)
+        try container.encodeIfPresent(attemptId, forKey: .attemptId)
+        try container.encodeIfPresent(segmentId, forKey: .segmentId)
+        try container.encode(sequence, forKey: .sequence)
+        try container.encode(type, forKey: .type)
+        try container.encode(payload, forKey: .payload)
     }
 
     func validateWireBounds() throws {
@@ -46,6 +103,20 @@ public struct BeaconAgentEventV2: Codable, Equatable, Sendable {
             maxCharacters: BeaconAgentEventV2WireLimits.identifierMaxCharacters,
             maxUTF8Bytes: BeaconAgentEventV2WireLimits.identifierMaxUTF8Bytes
         )
+        for (field, value) in [
+            ("turnId", turnId),
+            ("attemptId", attemptId),
+            ("segmentId", segmentId)
+        ] {
+            if let value {
+                try validateWireString(
+                    value,
+                    field: field,
+                    maxCharacters: BeaconAgentEventV2WireLimits.identifierMaxCharacters,
+                    maxUTF8Bytes: BeaconAgentEventV2WireLimits.identifierMaxUTF8Bytes
+                )
+            }
+        }
         try validateWireString(
             type,
             field: "type",
@@ -60,6 +131,21 @@ public struct BeaconAgentEventV2: Codable, Equatable, Sendable {
                 maximum: BeaconAgentEventV2WireLimits.payloadMaxBytes
             )
         }
+    }
+}
+
+private struct BeaconWireCodingKey: CodingKey {
+    let stringValue: String
+    let intValue: Int?
+
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+        intValue = nil
+    }
+
+    init?(intValue: Int) {
+        stringValue = String(intValue)
+        self.intValue = intValue
     }
 }
 

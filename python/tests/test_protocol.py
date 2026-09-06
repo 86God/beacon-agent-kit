@@ -23,6 +23,38 @@ def test_agent_event_round_trips() -> None:
     assert AgentEvent.model_validate_json(event.model_dump_json()) == event
 
 
+def test_legacy_event_serialization_omits_missing_identity_fields() -> None:
+    event = AgentEvent(
+        schemaVersion=2,
+        eventId="event-legacy",
+        runId="run-legacy",
+        sequence=0,
+        type=AgentEventType.RUN_STARTED,
+        payload={},
+    )
+
+    document = json.loads(event.model_dump_json(by_alias=True))
+
+    assert "turnId" not in document
+    assert "attemptId" not in document
+    assert "segmentId" not in document
+
+
+def test_agent_event_rejects_unknown_top_level_envelope_fields() -> None:
+    with pytest.raises(ValidationError, match="extra_forbidden"):
+        AgentEvent.model_validate(
+            {
+                "schemaVersion": 2,
+                "eventId": "strict-0",
+                "runId": "run-strict",
+                "sequence": 0,
+                "type": "tool.start",
+                "toolCallId": "wrong-layer",
+                "payload": {"toolCallId": "tool-1"},
+            }
+        )
+
+
 def test_agent_event_rejects_blank_identity_fields() -> None:
     try:
         AgentEvent(
@@ -67,6 +99,9 @@ def test_agent_event_rejects_negative_sequence() -> None:
         ("runId", "🧭" * 65, "utf8_byte_limit_exceeded"),
         ("type", " ", "blank_field"),
         ("type", "x" * 97, "character_limit_exceeded"),
+        ("turnId", "\u200b", "blank_field"),
+        ("attemptId", "x" * 129, "character_limit_exceeded"),
+        ("segmentId", "🧭" * 65, "utf8_byte_limit_exceeded"),
     ],
 )
 def test_agent_event_rejects_invalid_wire_string_fields(
@@ -168,3 +203,6 @@ def test_shared_mobile_contract_publishes_wire_bounds() -> None:
     assert "2000-200B" in contract["characterCounting"]["blankCodePoints"]
     assert contract["payloadSizing"]["algorithm"] == "decoded-json-structural-budget-v1"
     assert contract["payloadSizing"]["numberBytes"] == 32
+    assert contract["optionalEnvelopeFields"] == ["turnId", "attemptId", "segmentId"]
+    assert contract["identifierSemantics"]["toolCallId"].startswith("payload_identifier")
+    assert contract["identifierSemantics"]["commandId"].startswith("payload_identifier")

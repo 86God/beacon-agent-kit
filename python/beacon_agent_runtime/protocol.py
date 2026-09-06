@@ -4,7 +4,7 @@ from enum import StrEnum
 from math import isfinite
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer
 
 
 IDENTIFIER_MAX_CHARACTERS = 128
@@ -98,9 +98,27 @@ class AgentEvent(BaseModel):
     schema_version: int = Field(alias="schemaVersion", ge=2, le=2)
     event_id: str = Field(alias="eventId")
     run_id: str = Field(alias="runId")
+    turn_id: str | None = Field(default=None, alias="turnId")
+    attempt_id: str | None = Field(default=None, alias="attemptId")
+    segment_id: str | None = Field(default=None, alias="segmentId")
     sequence: int = Field(ge=0)
     type: AgentEventType | str
     payload: dict[str, Any]
+
+    @model_serializer(mode="wrap")
+    def serialize_without_missing_identity(self, handler: Any) -> dict[str, Any]:
+        document = handler(self)
+        for key in (
+            "turnId",
+            "attemptId",
+            "segmentId",
+            "turn_id",
+            "attempt_id",
+            "segment_id",
+        ):
+            if document.get(key) is None:
+                document.pop(key, None)
+        return document
 
     @field_validator("event_id", "run_id")
     @classmethod
@@ -112,6 +130,13 @@ class AgentEvent(BaseModel):
         if len(value.encode("utf-8")) > IDENTIFIER_MAX_UTF8_BYTES:
             raise ValueError("utf8_byte_limit_exceeded")
         return value
+
+    @field_validator("turn_id", "attempt_id", "segment_id")
+    @classmethod
+    def validate_optional_identifier(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return cls.validate_non_blank_identifier(value)
 
     @field_validator("type")
     @classmethod

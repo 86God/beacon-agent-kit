@@ -1,0 +1,3 @@
+{"schemaVersion":2,"eventId":"identity-0","runId":"run-identity","turnId":"turn-identity","attemptId":"attempt-1","segmentId":"segment-1","sequence":0,"type":"run.started","payload":{}}
+{"schemaVersion":2,"eventId":"identity-1","runId":"run-identity","turnId":"turn-identity","attemptId":"attempt-2","segmentId":"segment-2","sequence":1,"type":"step.started","payload":{"step":1}}
+{"schemaVersion":2,"eventId":"identity-2","runId":"run-identity","turnId":"turn-identity","attemptId":"attempt-2","segmentId":"segment-2","sequence":2,"type":"run.finished","payload":{"status":"completed"}}

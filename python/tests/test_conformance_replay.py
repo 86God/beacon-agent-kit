@@ -15,6 +15,7 @@ from beacon_agent_runtime.reducer import AgentReplayError, AgentStateReducer, Ev
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "conformance" / "fixtures"
+CONTRACT_FIXTURES = ROOT / "contracts" / "fixtures"
 
 
 def load_events(name: str) -> list[AgentEvent]:
@@ -30,6 +31,191 @@ def replay(events: list[AgentEvent]) -> AgentStateReducer:
     for event in events:
         reducer.ingest(event)
     return reducer
+
+
+def test_execution_identity_fixture_matches_shared_golden_json() -> None:
+    events = [
+        AgentEvent.model_validate_json(line)
+        for line in (CONTRACT_FIXTURES / "execution-identity-run.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    ]
+    expected = (CONTRACT_FIXTURES / "execution-identity-run.normalized.json").read_text(
+        encoding="utf-8"
+    ).strip()
+
+    assert replay(events).normalized_json() == expected
+
+
+def test_mixed_turn_identity_fails_without_changing_projection() -> None:
+    reducer = AgentStateReducer()
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="identity-turn-a",
+            runId="run-identity",
+            turnId="turn-a",
+            attemptId="attempt-1",
+            segmentId="segment-1",
+            sequence=0,
+            type="run.started",
+            payload={},
+        )
+    )
+    valid_projection = reducer.normalized_json()
+
+    with pytest.raises(AgentReplayError, match="mix turn IDs"):
+        reducer.ingest(
+            AgentEvent(
+                schemaVersion=2,
+                eventId="identity-turn-b",
+                runId="run-identity",
+                turnId="turn-b",
+                attemptId="attempt-1",
+                segmentId="segment-1",
+                sequence=1,
+                type="step.started",
+                payload={},
+            )
+        )
+
+    assert reducer.normalized_json() == valid_projection
+
+
+def test_out_of_order_identity_conflict_fails_without_changing_buffered_projection() -> None:
+    reducer = AgentStateReducer()
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="identity-late",
+            runId="run-a",
+            turnId="turn-a",
+            sequence=1,
+            type="step.started",
+            payload={},
+        )
+    )
+    buffered_projection = reducer.normalized_json()
+
+    with pytest.raises(AgentReplayError):
+        reducer.ingest(
+            AgentEvent(
+                schemaVersion=2,
+                eventId="identity-first",
+                runId="run-b",
+                turnId="turn-b",
+                sequence=0,
+                type="run.started",
+                payload={},
+            )
+        )
+
+    assert reducer.normalized_json() == buffered_projection
+
+
+def test_malformed_event_rolls_back_identity_and_duplicate_bookkeeping() -> None:
+    reducer = AgentStateReducer()
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="identity-start",
+            runId="run-atomic",
+            turnId="turn-atomic",
+            attemptId="attempt-1",
+            segmentId="segment-1",
+            sequence=0,
+            type="run.started",
+            payload={},
+        )
+    )
+    valid_projection = reducer.normalized_json()
+
+    with pytest.raises(AgentReplayError):
+        reducer.ingest(
+            AgentEvent(
+                schemaVersion=2,
+                eventId="identity-delta",
+                runId="run-atomic",
+                turnId="turn-atomic",
+                attemptId="attempt-2",
+                segmentId="segment-2",
+                sequence=1,
+                type="text.delta",
+                payload={"delta": "hello"},
+            )
+        )
+
+    assert reducer.normalized_json() == valid_projection
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="identity-delta",
+            runId="run-atomic",
+            turnId="turn-atomic",
+            attemptId="attempt-2",
+            segmentId="segment-2",
+            sequence=1,
+            type="text.delta",
+            payload={"messageId": "message-atomic", "delta": "hello"},
+        )
+    )
+    assert reducer.attempt_id == "attempt-2"
+    assert reducer.segment_id == "segment-2"
+    assert reducer.text["message-atomic"] == "hello"
+
+
+def test_buffered_malformed_event_is_evicted_when_gap_closes() -> None:
+    reducer = AgentStateReducer()
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="buffered-delta",
+            runId="run-buffered-invalid",
+            turnId="turn-buffered-invalid",
+            attemptId="attempt-2",
+            segmentId="segment-2",
+            sequence=1,
+            type="text.delta",
+            payload={"delta": "hello"},
+        )
+    )
+
+    with pytest.raises(AgentReplayError):
+        reducer.ingest(
+            AgentEvent(
+                schemaVersion=2,
+                eventId="buffered-start",
+                runId="run-buffered-invalid",
+                turnId="turn-buffered-invalid",
+                attemptId="attempt-1",
+                segmentId="segment-1",
+                sequence=0,
+                type="run.started",
+                payload={},
+            )
+        )
+
+    assert reducer.next_sequence == 1
+    assert reducer.attempt_id == "attempt-1"
+    assert reducer.segment_id == "segment-1"
+    assert reducer.normalized()["bufferedSequences"] == []
+
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="buffered-delta",
+            runId="run-buffered-invalid",
+            turnId="turn-buffered-invalid",
+            attemptId="attempt-2",
+            segmentId="segment-2",
+            sequence=1,
+            type="text.delta",
+            payload={"messageId": "message-buffered-invalid", "delta": "hello"},
+        )
+    )
+    assert reducer.next_sequence == 2
+    assert reducer.text["message-buffered-invalid"] == "hello"
 
 
 def test_mutated_payload_is_revalidated_before_projection() -> None:
@@ -186,3 +372,12 @@ def test_python_normalized_json_is_canonical() -> None:
     normalized = replay(load_events("tomorrow-training-run.jsonl")).normalized_json()
 
     assert normalized == json.dumps(json.loads(normalized), ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+
+
+def test_legacy_fixture_still_matches_shared_golden_without_null_identity_fields() -> None:
+    normalized = replay(load_events("tomorrow-training-run.jsonl")).normalized_json()
+    expected = (
+        ROOT / "conformance" / "expected" / "tomorrow-training-run.normalized.json"
+    ).read_text(encoding="utf-8").strip()
+
+    assert normalized == expected

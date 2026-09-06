@@ -50,6 +50,20 @@
     "type",
     "payload"
   ],
+  "optionalEnvelopeFields": [
+    "turnId",
+    "attemptId",
+    "segmentId"
+  ],
+  "identifierSemantics": {
+    "eventId": "unique_immutable_event",
+    "turnId": "stable_user_business_turn",
+    "runId": "stable_logical_execution_across_resume_segments",
+    "attemptId": "changes_when_the_logical_run_is_retried",
+    "segmentId": "changes_on_transport_reconnect_or_resume",
+    "toolCallId": "payload_identifier_for_one_model_tool_invocation",
+    "commandId": "payload_identifier_for_one_device_mutation_command"
+  },
   "missingValueSemantics": {
     "missingPayloadKey": "unknown_or_not_provided",
     "explicitNull": "known_empty",
