@@ -1,0 +1,2 @@
+{"schemaVersion":2,"eventId":"permission-0","runId":"run-permission","turnId":"turn-permission","sequence":0,"type":"run.started","payload":{}}
+{"schemaVersion":2,"eventId":"permission-1","runId":"run-permission","turnId":"turn-permission","sequence":1,"type":"permission.denied","payload":{"code":"device.permission_denied","retryable":false,"diagnosticId":"diag-permission-1"}}

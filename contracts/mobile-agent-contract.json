@@ -64,6 +64,30 @@
     "toolCallId": "payload_identifier_for_one_model_tool_invocation",
     "commandId": "payload_identifier_for_one_device_mutation_command"
   },
+  "runStatusValues": [
+    "idle",
+    "running",
+    "waiting_device",
+    "waiting_approval",
+    "interrupted",
+    "finished",
+    "permission_denied",
+    "error"
+  ],
+  "resultKindValues": [
+    "success",
+    "empty",
+    "text_fallback"
+  ],
+  "diagnosticFields": [
+    "code",
+    "retryable",
+    "diagnosticId"
+  ],
+  "criticalEventSemantics": {
+    "marker": "payload.critical=true",
+    "unknownBehavior": "explicit_upgrade_required_or_protocol_error_before_projection"
+  },
   "missingValueSemantics": {
     "missingPayloadKey": "unknown_or_not_provided",
     "explicitNull": "known_empty",
@@ -71,11 +95,13 @@
   },
   "segmentStates": [
     "run.interrupted",
-    "approval.requested"
+    "approval.requested",
+    "device.waiting"
   ],
   "terminalStates": [
     "run.finished",
-    "run.error"
+    "run.error",
+    "permission.denied"
   ],
   "unsupportedSchemaBehavior": "upgradeRequired_or_explicit_error_before_projection"
 }

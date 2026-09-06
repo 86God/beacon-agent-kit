@@ -1,0 +1,2 @@
+{"schemaVersion":2,"eventId":"success-0","runId":"run-success","turnId":"turn-success","sequence":0,"type":"run.started","payload":{}}
+{"schemaVersion":2,"eventId":"success-1","runId":"run-success","turnId":"turn-success","sequence":1,"type":"run.finished","payload":{"resultKind":"success"}}

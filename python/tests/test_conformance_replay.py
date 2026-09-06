@@ -48,6 +48,135 @@ def test_execution_identity_fixture_matches_shared_golden_json() -> None:
     assert replay(events).normalized_json() == expected
 
 
+@pytest.mark.parametrize(
+    "fixture_name",
+    ["success-run", "empty-query-run", "text-fallback-run", "permission-denied-run"],
+)
+def test_public_outcome_fixture_matches_shared_golden_json(fixture_name: str) -> None:
+    events = [
+        AgentEvent.model_validate_json(line)
+        for line in (CONTRACT_FIXTURES / f"{fixture_name}.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    ]
+    expected = (CONTRACT_FIXTURES / f"{fixture_name}.normalized.json").read_text(
+        encoding="utf-8"
+    ).strip()
+
+    assert replay(events).normalized_json() == expected
+
+
+def test_waiting_states_are_explicit_and_resume_without_becoming_terminal() -> None:
+    reducer = AgentStateReducer()
+    reducer.ingest(
+        AgentEvent(schemaVersion=2, eventId="waiting-0", runId="run-waiting", sequence=0, type="run.started", payload={})
+    )
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="waiting-1",
+            runId="run-waiting",
+            sequence=1,
+            type="device.waiting",
+            payload={"code": "device.unavailable", "retryable": True, "diagnosticId": "diag-waiting-1"},
+        )
+    )
+    assert reducer.status == "waiting_device"
+
+    reducer.ingest(
+        AgentEvent(schemaVersion=2, eventId="waiting-2", runId="run-waiting", sequence=2, type="run.started", payload={})
+    )
+    assert reducer.status == "running"
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="waiting-3",
+            runId="run-waiting",
+            sequence=3,
+            type="approval.requested",
+            payload={"approvalId": "approval-waiting"},
+        )
+    )
+    assert reducer.status == "waiting_approval"
+
+
+def test_malformed_diagnostic_group_fails_atomically() -> None:
+    reducer = AgentStateReducer()
+    before = reducer.normalized_json()
+
+    with pytest.raises(AgentReplayError):
+        reducer.ingest(
+            AgentEvent(
+                schemaVersion=2,
+                eventId="diagnostic-invalid",
+                runId="run-diagnostic",
+                sequence=0,
+                type="permission.denied",
+                payload={"code": "device.permission_denied", "retryable": False},
+            )
+        )
+
+    assert reducer.normalized_json() == before
+
+
+def test_legacy_run_error_with_code_and_summary_remains_compatible() -> None:
+    reducer = AgentStateReducer()
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="legacy-error-0",
+            runId="run-legacy-error",
+            sequence=0,
+            type="run.error",
+            payload={"code": "provider_error", "summary": "retry later"},
+        )
+    )
+
+    assert reducer.status == "error"
+    assert reducer.next_sequence == 1
+    assert "failure" not in reducer.normalized()
+
+
+@pytest.mark.parametrize("result_kind", [None, 1, True, {}])
+def test_wrong_typed_result_kind_fails_atomically(result_kind: object) -> None:
+    reducer = AgentStateReducer()
+    before = reducer.normalized_json()
+
+    with pytest.raises(AgentReplayError):
+        reducer.ingest(
+            AgentEvent(
+                schemaVersion=2,
+                eventId="result-kind-invalid",
+                runId="run-result-kind-invalid",
+                sequence=0,
+                type="run.finished",
+                payload={"resultKind": result_kind},
+            )
+        )
+
+    assert reducer.normalized_json() == before
+
+
+def test_unknown_critical_event_fails_without_changing_projection() -> None:
+    reducer = AgentStateReducer()
+    before = reducer.normalized_json()
+
+    with pytest.raises(AgentReplayError):
+        reducer.ingest(
+            AgentEvent(
+                schemaVersion=2,
+                eventId="critical-0",
+                runId="run-critical",
+                sequence=0,
+                type="future.command.required",
+                payload={"critical": True, "requiredSchemaVersion": 3},
+            )
+        )
+
+    assert reducer.normalized_json() == before
+
+
 def test_mixed_turn_identity_fails_without_changing_projection() -> None:
     reducer = AgentStateReducer()
     reducer.ingest(

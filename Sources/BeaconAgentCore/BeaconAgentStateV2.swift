@@ -6,6 +6,7 @@ public enum BeaconAgentReplayError: Error, Equatable, Sendable {
     case sequenceCollision(Int)
     case mixedRunIds
     case mixedTurnIds
+    case unsupportedCriticalEvent(String)
     case eventAfterTerminal(Int)
     case blankField(String)
     case fieldCharacterLimit(field: String, actual: Int, maximum: Int)
@@ -33,6 +34,9 @@ public struct BeaconAgentStateV2: Sendable {
     private var receipts: [[String: BeaconJSONValue]] = []
     private var customEvents: [BeaconAgentEventV2] = []
     private var errors: [[String: BeaconJSONValue]] = []
+    private var resultKind: String?
+    private var failure: [String: BeaconJSONValue]?
+    private var diagnostic: [String: BeaconJSONValue]?
     private var buffer: [Int: BeaconAgentEventV2] = [:]
     private var seen: [String: Data] = [:]
     private var terminalSequence: Int?
@@ -139,6 +143,9 @@ public struct BeaconAgentStateV2: Sendable {
         if let turnId { projection["turnId"] = .string(turnId) }
         if let attemptId { projection["attemptId"] = .string(attemptId) }
         if let segmentId { projection["segmentId"] = .string(segmentId) }
+        if let resultKind { projection["resultKind"] = .string(resultKind) }
+        if let failure { projection["failure"] = .object(failure) }
+        if let diagnostic { projection["diagnostic"] = .object(diagnostic) }
         let value = BeaconJSONValue.object(projection)
         let data = try canonicalData(value)
         guard let string = String(data: data, encoding: .utf8) else {
@@ -160,7 +167,15 @@ public struct BeaconAgentStateV2: Sendable {
         switch event.type {
         case "run.started":
             status = "running"
+            diagnostic = nil
         case "run.finished":
+            if payload["resultKind"] != nil {
+                let kind = try requiredString("resultKind", in: payload)
+                guard Self.resultKinds.contains(kind) else {
+                    throw BeaconAgentReplayError.malformedPayload("invalid resultKind")
+                }
+                resultKind = kind
+            }
             status = "finished"
             terminalSequence = event.sequence
         case "run.interrupted":
@@ -168,6 +183,16 @@ public struct BeaconAgentStateV2: Sendable {
         case "run.error":
             status = "error"
             errors.append(payload)
+            failure = try diagnosticFields(in: payload, required: false)
+            terminalSequence = event.sequence
+        case "device.waiting":
+            status = "waiting_device"
+            diagnostic = try diagnosticFields(in: payload, required: true)
+        case "permission.denied":
+            let fields = try diagnosticFields(in: payload, required: true) ?? [:]
+            status = "permission_denied"
+            failure = fields
+            errors.append(fields)
             terminalSequence = event.sequence
         case "activity.snapshot", "activity.delta":
             let identifier = try requiredString("activityId", in: payload)
@@ -211,18 +236,29 @@ public struct BeaconAgentStateV2: Sendable {
         case "approval.requested":
             let identifier = try requiredString("approvalId", in: payload)
             approvals[identifier] = payload.merging(["status": .string("pending")]) { current, _ in current }
+            status = "waiting_approval"
+            diagnostic = try diagnosticFields(in: payload, required: false)
         case "approval.resolved", "approval.expired":
             let identifier = try requiredString("approvalId", in: payload)
             approvals[identifier, default: [:]].merge(payload) { _, new in new }
             approvals[identifier]?["status"] = .string(event.type == "approval.resolved" ? "resolved" : "expired")
+            if status == "waiting_approval" {
+                status = event.type == "approval.resolved" ? "running" : "error"
+                diagnostic = nil
+            }
         case "receipt.committed", "receipt.rejected":
             receipts.append(payload)
         default:
             if !Self.standardEventTypes.contains(event.type) {
+                if payload.bool("critical") == true {
+                    throw BeaconAgentReplayError.unsupportedCriticalEvent(event.type)
+                }
                 customEvents.append(event)
             }
         }
     }
+
+    private static let resultKinds: Set<String> = ["success", "empty", "text_fallback"]
 
     private static let standardEventTypes: Set<String> = [
         "run.started", "run.finished", "run.error", "run.interrupted",
@@ -230,7 +266,8 @@ public struct BeaconAgentStateV2: Sendable {
         "text.start", "text.delta", "text.end", "tool.start", "tool.arguments.delta",
         "tool.end", "tool.result", "state.snapshot", "state.delta", "surface.create",
         "surface.patch", "surface.complete", "surface.error", "approval.requested",
-        "approval.resolved", "approval.expired", "receipt.committed", "receipt.rejected"
+        "approval.resolved", "approval.expired", "receipt.committed", "receipt.rejected",
+        "device.waiting", "permission.denied"
     ]
 }
 
@@ -258,6 +295,11 @@ private extension Dictionary where Key == String, Value == BeaconJSONValue {
     func object(_ key: String) -> [String: BeaconJSONValue]? {
         self[key]?.objectValue
     }
+
+    func bool(_ key: String) -> Bool? {
+        guard case let .bool(value)? = self[key] else { return nil }
+        return value
+    }
 }
 
 private extension BeaconJSONValue {
@@ -272,6 +314,37 @@ private func requiredString(_ key: String, in payload: [String: BeaconJSONValue]
         throw BeaconAgentReplayError.malformedPayload("missing \(key)")
     }
     return value
+}
+
+private func diagnosticFields(
+    in payload: [String: BeaconJSONValue],
+    required: Bool
+) throws -> [String: BeaconJSONValue]? {
+    let hasAny = payload["retryable"] != nil || payload["diagnosticId"] != nil
+    if !required, !hasAny { return nil }
+
+    let code = try requiredString("code", in: payload)
+    let diagnosticId = try requiredString("diagnosticId", in: payload)
+    guard let retryable = payload.bool("retryable") else {
+        throw BeaconAgentReplayError.malformedPayload("missing retryable")
+    }
+    try validateWireString(
+        code,
+        field: "code",
+        maxCharacters: BeaconAgentEventV2WireLimits.identifierMaxCharacters,
+        maxUTF8Bytes: BeaconAgentEventV2WireLimits.identifierMaxUTF8Bytes
+    )
+    try validateWireString(
+        diagnosticId,
+        field: "diagnosticId",
+        maxCharacters: BeaconAgentEventV2WireLimits.identifierMaxCharacters,
+        maxUTF8Bytes: BeaconAgentEventV2WireLimits.identifierMaxUTF8Bytes
+    )
+    return [
+        "code": .string(code),
+        "retryable": .bool(retryable),
+        "diagnosticId": .string(diagnosticId)
+    ]
 }
 
 private func requiredPatch(in payload: [String: BeaconJSONValue]) throws -> [PatchOperation] {

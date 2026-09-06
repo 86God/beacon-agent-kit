@@ -338,6 +338,12 @@ struct BeaconAgentV2ConformanceTests {
         let payloadSizing = try #require(object["payloadSizing"] as? [String: Any])
         let optionalEnvelopeFields = try #require(object["optionalEnvelopeFields"] as? [String])
         let identifierSemantics = try #require(object["identifierSemantics"] as? [String: String])
+        let runStatusValues = try #require(object["runStatusValues"] as? [String])
+        let resultKindValues = try #require(object["resultKindValues"] as? [String])
+        let diagnosticFields = try #require(object["diagnosticFields"] as? [String])
+        let criticalEventSemantics = try #require(object["criticalEventSemantics"] as? [String: String])
+        let segmentStates = try #require(object["segmentStates"] as? [String])
+        let terminalStates = try #require(object["terminalStates"] as? [String])
 
         #expect(blankCodePoints.contains("001C-0020"))
         #expect(blankCodePoints.contains("2000-200B"))
@@ -346,6 +352,14 @@ struct BeaconAgentV2ConformanceTests {
         #expect(optionalEnvelopeFields == ["turnId", "attemptId", "segmentId"])
         #expect(identifierSemantics["toolCallId"]?.hasPrefix("payload_identifier") == true)
         #expect(identifierSemantics["commandId"]?.hasPrefix("payload_identifier") == true)
+        #expect(runStatusValues.contains("waiting_device"))
+        #expect(runStatusValues.contains("waiting_approval"))
+        #expect(runStatusValues.contains("permission_denied"))
+        #expect(resultKindValues == ["success", "empty", "text_fallback"])
+        #expect(diagnosticFields == ["code", "retryable", "diagnosticId"])
+        #expect(criticalEventSemantics["marker"] == "payload.critical=true")
+        #expect(segmentStates.contains("device.waiting"))
+        #expect(terminalStates.contains("permission.denied"))
     }
 
     @Test
@@ -361,6 +375,167 @@ struct BeaconAgentV2ConformanceTests {
         ).trimmingCharacters(in: .whitespacesAndNewlines)
 
         #expect(try state.normalizedJSON() == expected)
+    }
+
+    @Test(arguments: ["success-run", "empty-query-run", "text-fallback-run", "permission-denied-run"])
+    func publicOutcomeFixtureMatchesSharedGoldenJSON(_ fixtureName: String) throws {
+        var state = BeaconAgentStateV2()
+        for event in try loadContractEvents("\(fixtureName).jsonl") {
+            try state.ingest(event)
+        }
+        let expected = try String(
+            contentsOf: contractFixtureDirectory
+                .appendingPathComponent("\(fixtureName).normalized.json"),
+            encoding: .utf8
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        #expect(try state.normalizedJSON() == expected)
+    }
+
+    @Test
+    func waitingStatesAreExplicitAndResumeWithoutBecomingTerminal() throws {
+        var state = BeaconAgentStateV2()
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "waiting-0",
+                runId: "run-waiting",
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            )
+        )
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "waiting-1",
+                runId: "run-waiting",
+                sequence: 1,
+                type: "device.waiting",
+                payload: [
+                    "code": .string("device.unavailable"),
+                    "retryable": .bool(true),
+                    "diagnosticId": .string("diag-waiting-1")
+                ]
+            )
+        )
+        #expect(state.status == "waiting_device")
+
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "waiting-2",
+                runId: "run-waiting",
+                sequence: 2,
+                type: "run.started",
+                payload: [:]
+            )
+        )
+        #expect(state.status == "running")
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "waiting-3",
+                runId: "run-waiting",
+                sequence: 3,
+                type: "approval.requested",
+                payload: ["approvalId": .string("approval-waiting")]
+            )
+        )
+        #expect(state.status == "waiting_approval")
+    }
+
+    @Test
+    func malformedDiagnosticGroupFailsAtomically() throws {
+        var state = BeaconAgentStateV2()
+        let before = try state.normalizedJSON()
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(
+                BeaconAgentEventV2(
+                    schemaVersion: 2,
+                    eventId: "diagnostic-invalid",
+                    runId: "run-diagnostic",
+                    sequence: 0,
+                    type: "permission.denied",
+                    payload: [
+                        "code": .string("device.permission_denied"),
+                        "retryable": .bool(false)
+                    ]
+                )
+            )
+        }
+        #expect(try state.normalizedJSON() == before)
+    }
+
+    @Test
+    func legacyRunErrorWithCodeAndSummaryRemainsCompatible() throws {
+        var state = BeaconAgentStateV2()
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "legacy-error-0",
+                runId: "run-legacy-error",
+                sequence: 0,
+                type: "run.error",
+                payload: [
+                    "code": .string("provider_error"),
+                    "summary": .string("retry later")
+                ]
+            )
+        )
+
+        #expect(state.status == "error")
+        #expect(state.nextSequence == 1)
+        #expect(!(try state.normalizedJSON()).contains("\"failure\""))
+    }
+
+    @Test(arguments: [
+        BeaconJSONValue.null,
+        BeaconJSONValue.number(1),
+        BeaconJSONValue.bool(true),
+        BeaconJSONValue.object([:])
+    ])
+    func wrongTypedResultKindFailsAtomically(_ resultKind: BeaconJSONValue) throws {
+        var state = BeaconAgentStateV2()
+        let before = try state.normalizedJSON()
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(
+                BeaconAgentEventV2(
+                    schemaVersion: 2,
+                    eventId: "result-kind-invalid",
+                    runId: "run-result-kind-invalid",
+                    sequence: 0,
+                    type: "run.finished",
+                    payload: ["resultKind": resultKind]
+                )
+            )
+        }
+        #expect(try state.normalizedJSON() == before)
+    }
+
+    @Test
+    func unknownCriticalEventFailsWithoutChangingProjection() throws {
+        var state = BeaconAgentStateV2()
+        let before = try state.normalizedJSON()
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(
+                BeaconAgentEventV2(
+                    schemaVersion: 2,
+                    eventId: "critical-0",
+                    runId: "run-critical",
+                    sequence: 0,
+                    type: "future.command.required",
+                    payload: [
+                        "critical": .bool(true),
+                        "requiredSchemaVersion": .number(3)
+                    ]
+                )
+            )
+        }
+        #expect(try state.normalizedJSON() == before)
     }
 
     @Test

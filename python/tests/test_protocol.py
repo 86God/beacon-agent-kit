@@ -206,3 +206,11 @@ def test_shared_mobile_contract_publishes_wire_bounds() -> None:
     assert contract["optionalEnvelopeFields"] == ["turnId", "attemptId", "segmentId"]
     assert contract["identifierSemantics"]["toolCallId"].startswith("payload_identifier")
     assert contract["identifierSemantics"]["commandId"].startswith("payload_identifier")
+    assert "waiting_device" in contract["runStatusValues"]
+    assert "waiting_approval" in contract["runStatusValues"]
+    assert "permission_denied" in contract["runStatusValues"]
+    assert contract["resultKindValues"] == ["success", "empty", "text_fallback"]
+    assert contract["diagnosticFields"] == ["code", "retryable", "diagnosticId"]
+    assert contract["criticalEventSemantics"]["marker"] == "payload.critical=true"
+    assert "device.waiting" in contract["segmentStates"]
+    assert "permission.denied" in contract["terminalStates"]

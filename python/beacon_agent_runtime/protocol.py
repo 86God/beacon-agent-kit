@@ -27,6 +27,16 @@ def _is_wire_blank(value: str) -> bool:
     return not value or all(is_blank(ord(character)) for character in value)
 
 
+def validate_wire_identifier(value: str) -> str:
+    if _is_wire_blank(value):
+        raise ValueError("blank_field")
+    if len(value) > IDENTIFIER_MAX_CHARACTERS:
+        raise ValueError("character_limit_exceeded")
+    if len(value.encode("utf-8")) > IDENTIFIER_MAX_UTF8_BYTES:
+        raise ValueError("utf8_byte_limit_exceeded")
+    return value
+
+
 def payload_wire_budget(value: Any) -> int:
     """Return the cross-runtime decoded-JSON structural budget."""
     if value is None:
@@ -88,6 +98,8 @@ class AgentEventType(StrEnum):
     APPROVAL_EXPIRED = "approval.expired"
     RECEIPT_COMMITTED = "receipt.committed"
     RECEIPT_REJECTED = "receipt.rejected"
+    DEVICE_WAITING = "device.waiting"
+    PERMISSION_DENIED = "permission.denied"
 
 
 class AgentEvent(BaseModel):
@@ -123,13 +135,7 @@ class AgentEvent(BaseModel):
     @field_validator("event_id", "run_id")
     @classmethod
     def validate_non_blank_identifier(cls, value: str) -> str:
-        if _is_wire_blank(value):
-            raise ValueError("blank_field")
-        if len(value) > IDENTIFIER_MAX_CHARACTERS:
-            raise ValueError("character_limit_exceeded")
-        if len(value.encode("utf-8")) > IDENTIFIER_MAX_UTF8_BYTES:
-            raise ValueError("utf8_byte_limit_exceeded")
-        return value
+        return validate_wire_identifier(value)
 
     @field_validator("turn_id", "attempt_id", "segment_id")
     @classmethod

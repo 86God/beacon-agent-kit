@@ -1,0 +1,2 @@
+{"schemaVersion":2,"eventId":"fallback-0","runId":"run-fallback","turnId":"turn-fallback","sequence":0,"type":"run.started","payload":{}}
+{"schemaVersion":2,"eventId":"fallback-1","runId":"run-fallback","turnId":"turn-fallback","sequence":1,"type":"run.finished","payload":{"resultKind":"text_fallback"}}

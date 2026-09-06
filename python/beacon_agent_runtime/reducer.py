@@ -7,7 +7,12 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
-from .protocol import AgentEvent, AgentEventType, validate_payload_wire_budget
+from .protocol import (
+    AgentEvent,
+    AgentEventType,
+    validate_payload_wire_budget,
+    validate_wire_identifier,
+)
 
 
 class AgentReplayError(ValueError):
@@ -99,6 +104,9 @@ class AgentStateReducer:
     receipts: list[dict[str, Any]] = field(default_factory=list)
     custom_events: list[dict[str, Any]] = field(default_factory=list)
     errors: list[dict[str, Any]] = field(default_factory=list)
+    result_kind: str | None = None
+    failure: dict[str, Any] | None = None
+    diagnostic: dict[str, Any] | None = None
     _buffer: dict[int, AgentEvent] = field(default_factory=dict, repr=False)
     _seen: dict[str, str] = field(default_factory=dict, repr=False)
     _terminal_sequence: int | None = field(default=None, repr=False)
@@ -206,6 +214,12 @@ class AgentStateReducer:
             projection["attemptId"] = self.attempt_id
         if self.segment_id is not None:
             projection["segmentId"] = self.segment_id
+        if self.result_kind is not None:
+            projection["resultKind"] = self.result_kind
+        if self.failure is not None:
+            projection["failure"] = deepcopy(self.failure)
+        if self.diagnostic is not None:
+            projection["diagnostic"] = deepcopy(self.diagnostic)
         return projection
 
     def normalized_json(self) -> str:
@@ -223,7 +237,13 @@ class AgentStateReducer:
 
         if event_type == AgentEventType.RUN_STARTED:
             self.status = "running"
+            self.diagnostic = None
         elif event_type == AgentEventType.RUN_FINISHED:
+            if "resultKind" in payload:
+                result_kind = _required_string(payload, "resultKind")
+                if result_kind not in {"success", "empty", "text_fallback"}:
+                    raise AgentReplayError("invalid resultKind")
+                self.result_kind = result_kind
             self.status = "finished"
             self._terminal_sequence = event.sequence
         elif event_type == AgentEventType.RUN_INTERRUPTED:
@@ -231,6 +251,16 @@ class AgentStateReducer:
         elif event_type == AgentEventType.RUN_ERROR:
             self.status = "error"
             self.errors.append(payload)
+            self.failure = _diagnostic_fields(payload, required=False)
+            self._terminal_sequence = event.sequence
+        elif event_type == AgentEventType.DEVICE_WAITING:
+            self.status = "waiting_device"
+            self.diagnostic = _diagnostic_fields(payload, required=True)
+        elif event_type == AgentEventType.PERMISSION_DENIED:
+            fields = _diagnostic_fields(payload, required=True)
+            self.status = "permission_denied"
+            self.failure = fields
+            self.errors.append(deepcopy(fields))
             self._terminal_sequence = event.sequence
         elif event_type in {AgentEventType.ACTIVITY_SNAPSHOT, AgentEventType.ACTIVITY_DELTA}:
             identifier = _required_string(payload, "activityId")
@@ -276,13 +306,20 @@ class AgentStateReducer:
         elif event_type == AgentEventType.APPROVAL_REQUESTED:
             identifier = _required_string(payload, "approvalId")
             self.approvals[identifier] = {**payload, "status": "pending"}
+            self.status = "waiting_approval"
+            self.diagnostic = _diagnostic_fields(payload, required=False)
         elif event_type in {AgentEventType.APPROVAL_RESOLVED, AgentEventType.APPROVAL_EXPIRED}:
             identifier = _required_string(payload, "approvalId")
             status = "resolved" if event_type == AgentEventType.APPROVAL_RESOLVED else "expired"
             self.approvals.setdefault(identifier, {}).update(payload, status=status)
+            if self.status == "waiting_approval":
+                self.status = "running" if event_type == AgentEventType.APPROVAL_RESOLVED else "error"
+                self.diagnostic = None
         elif event_type in {AgentEventType.RECEIPT_COMMITTED, AgentEventType.RECEIPT_REJECTED}:
             self.receipts.append(payload)
         elif event_type not in {str(item) for item in AgentEventType}:
+            if payload.get("critical") is True:
+                raise AgentReplayError(f"unsupported critical event: {event_type}")
             self.custom_events.append(_event_document(event))
 
 
@@ -291,6 +328,24 @@ def _required_string(payload: dict[str, Any], key: str) -> str:
     if not isinstance(value, str) or not value:
         raise AgentReplayError(f"missing {key}")
     return value
+
+
+def _diagnostic_fields(payload: dict[str, Any], required: bool) -> dict[str, Any] | None:
+    has_any = "retryable" in payload or "diagnosticId" in payload
+    if not required and not has_any:
+        return None
+
+    code = _required_string(payload, "code")
+    diagnostic_id = _required_string(payload, "diagnosticId")
+    retryable = payload.get("retryable")
+    if not isinstance(retryable, bool):
+        raise AgentReplayError("missing retryable")
+    try:
+        validate_wire_identifier(code)
+        validate_wire_identifier(diagnostic_id)
+    except ValueError as error:
+        raise AgentReplayError(str(error)) from error
+    return {"code": code, "retryable": retryable, "diagnosticId": diagnostic_id}
 
 
 def _required_patch(payload: dict[str, Any]) -> list[dict[str, Any]]:

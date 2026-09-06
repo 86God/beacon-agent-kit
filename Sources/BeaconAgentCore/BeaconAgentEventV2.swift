@@ -149,7 +149,7 @@ private struct BeaconWireCodingKey: CodingKey {
     }
 }
 
-private func validateWireString(
+func validateWireString(
     _ value: String,
     field: String,
     maxCharacters: Int,
