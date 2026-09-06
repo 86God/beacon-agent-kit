@@ -8,6 +8,31 @@ public enum BeaconAgentEventV2WireLimits {
     public static let payloadMaxBytes = 262_144
 }
 
+public enum BeaconAgentWireValidation {
+    public static func validateIdentifier(_ value: String, field: String) throws {
+        try validateWireString(
+            value,
+            field: field,
+            maxCharacters: BeaconAgentEventV2WireLimits.identifierMaxCharacters,
+            maxUTF8Bytes: BeaconAgentEventV2WireLimits.identifierMaxUTF8Bytes
+        )
+    }
+
+    public static func validatePayload(_ payload: [String: BeaconJSONValue]) throws {
+        let byteCount = try payloadByteCount(payload)
+        guard byteCount <= BeaconAgentEventV2WireLimits.payloadMaxBytes else {
+            throw BeaconAgentReplayError.payloadByteLimit(
+                actual: byteCount,
+                maximum: BeaconAgentEventV2WireLimits.payloadMaxBytes
+            )
+        }
+    }
+
+    public static func payloadByteCount(_ payload: [String: BeaconJSONValue]) throws -> Int {
+        try payloadWireBudget(.object(payload))
+    }
+}
+
 /// The language-neutral v0.2 event envelope. Domain payloads remain opaque JSON.
 public struct BeaconAgentEventV2: Codable, Equatable, Sendable {
     public let schemaVersion: Int

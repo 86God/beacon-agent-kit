@@ -13,6 +13,7 @@ let package = Package(
     ],
     products: [
         .library(name: "BeaconAgentCore", targets: ["BeaconAgentCore"]),
+        .library(name: "BeaconAgentPersistence", targets: ["BeaconAgentPersistence"]),
         .library(name: "BeaconAgentSwiftUI", targets: ["BeaconAgentSwiftUI"]),
         .library(name: "BeaconAgentAGUI", targets: ["BeaconAgentAGUI"]),
         .library(name: "BeaconAgentA2UI", targets: ["BeaconAgentA2UI"]),
@@ -22,6 +23,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "BeaconAgentCore"),
+        .target(name: "BeaconAgentPersistence", dependencies: ["BeaconAgentCore"]),
         .target(name: "BeaconAgentSwiftUI", dependencies: ["BeaconAgentCore", "BeaconAgentA2UI"]),
         .target(name: "BeaconAgentAGUI", dependencies: ["BeaconAgentCore"]),
         .target(name: "BeaconAgentA2UI", dependencies: ["BeaconAgentCore"]),
@@ -29,6 +31,10 @@ let package = Package(
         .target(name: "BeaconAgentMCP", dependencies: ["BeaconAgentCore", "BeaconAgentA2UI"]),
         .target(name: "BeaconAgentAppleEvents", dependencies: ["BeaconAgentCore"]),
         .testTarget(name: "BeaconAgentCoreTests", dependencies: ["BeaconAgentCore"]),
+        .testTarget(
+            name: "BeaconAgentPersistenceTests",
+            dependencies: ["BeaconAgentPersistence", "BeaconAgentCore"]
+        ),
         .testTarget(name: "BeaconAgentAGUITests", dependencies: ["BeaconAgentAGUI", "BeaconAgentCore"]),
         .testTarget(name: "BeaconAgentA2UITests", dependencies: ["BeaconAgentA2UI", "BeaconAgentCore"]),
         .testTarget(name: "BeaconAgentDeviceTests", dependencies: ["BeaconAgentDevice", "BeaconAgentCore"]),
