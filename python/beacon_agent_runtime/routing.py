@@ -25,6 +25,7 @@ class InvalidRerankerSelection(RoutingError):
 @dataclass(frozen=True)
 class RouteContext:
     pending_workflow_id: str | None = None
+    pending_object_ids: tuple[str, ...] = ()
     active_approval_capability_id: str | None = None
     explicit_capability_id: str | None = None
     resolved_date: str | None = None
@@ -65,6 +66,25 @@ class StagedIntentRouter:
         context: RouteContext,
     ) -> RouteDecision:
         available = {item.id: item for item in registry.capabilities}
+
+        pending_objects = tuple(
+            dict.fromkeys(
+                identifier
+                for identifier in context.pending_object_ids
+                if identifier in available
+            )
+        )
+        if len(pending_objects) > 1:
+            return RouteDecision(
+                registry_revision=registry.revision,
+                candidate_ids=pending_objects,
+                selected_ids=(),
+                confidence=1.0,
+                safe_reasons=("Multiple pending objects",),
+                required_clarification="请确认要继续处理哪一个待确认对象。",
+                planner_action="clarify",
+                resolved_date=context.resolved_date,
+            )
 
         precedence = (
             (context.pending_workflow_id, "Pending workflow continuation"),

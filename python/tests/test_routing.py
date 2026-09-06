@@ -118,6 +118,25 @@ def test_active_approval_and_pending_workflow_take_precedence() -> None:
     assert workflow.safe_reasons == ("Pending workflow continuation",)
 
 
+def test_multiple_pending_objects_require_an_explicit_object_choice() -> None:
+    meal = capability("nutrition.meal.draft", kind="workflow", risk="reversible_draft")
+    training = capability("training.plan.draft", kind="workflow", risk="reversible_draft")
+    router = StagedIntentRouter(
+        retriever=FixedRetriever((meal.id, training.id)),
+        reranker=FixedReranker(RerankResult((meal.id,), 0.99, ("Would guess meal",))),
+    )
+
+    decision = router.route(
+        "可以，按刚才的来",
+        registry(meal, training),
+        RouteContext(pending_object_ids=(meal.id, training.id)),
+    )
+
+    assert decision.selected_ids == ()
+    assert decision.planner_action == "clarify"
+    assert decision.required_clarification == "请确认要继续处理哪一个待确认对象。"
+
+
 def test_reranker_cannot_select_disabled_capability() -> None:
     enabled = capability("training.context.read")
     router = StagedIntentRouter(
@@ -172,4 +191,3 @@ def test_manifest_tag_fallback_never_leaves_effective_registry() -> None:
 
     assert decision.candidate_ids == (shoulder.id,)
     assert decision.selected_ids == (shoulder.id,)
-
