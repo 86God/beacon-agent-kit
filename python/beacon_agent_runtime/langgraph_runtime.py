@@ -216,7 +216,12 @@ class LangGraphAgentRuntime(AgentRuntime):
         if isinstance(action, FinishAction):
             result = self._finish_text((action.text,), checkpoint, emitter)
         elif isinstance(action, StreamingFinishAction):
-            result = self._finish_text(action.chunks, checkpoint, emitter)
+            result = self._finish_text(
+                action.chunks,
+                checkpoint,
+                emitter,
+                outcome=action.outcome,
+            )
         else:
             raise RuntimeFailure("invalid_model_action", "Model returned an unsupported action")
         return {"checkpoint": checkpoint, "result": result}

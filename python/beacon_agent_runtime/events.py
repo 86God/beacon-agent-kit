@@ -33,6 +33,13 @@ class FinishAction:
     output_kind: Literal["text", "structured"] = "text"
 
 
+@dataclass
+class StreamingFinishOutcome:
+    """Mutable terminal metadata resolved while a provider stream is consumed."""
+
+    result_kind: Literal["success", "text_fallback"] = "success"
+
+
 @dataclass(frozen=True)
 class StreamingFinishAction:
     """A provider-owned live text stream for the final assistant answer.
@@ -42,6 +49,7 @@ class StreamingFinishAction:
     """
 
     chunks: Iterable[str]
+    outcome: StreamingFinishOutcome = field(default_factory=StreamingFinishOutcome)
 
 
 @dataclass(frozen=True)

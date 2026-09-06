@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Event, Thread
 
@@ -16,6 +17,7 @@ from beacon_agent_runtime.events import (
     ListEventSink,
     RunContext,
     StreamingFinishAction,
+    StreamingFinishOutcome,
     ToolRequestAction,
 )
 import beacon_agent_runtime.native_langgraph_runtime as native_runtime_module
@@ -377,6 +379,37 @@ def test_native_langgraph_streams_first_text_delta_before_provider_finishes(
     assert event_types.index("text.delta") < event_types.index("run.finished")
 
 
+def test_native_langgraph_marks_provider_text_fallback_at_terminal_event(
+    tmp_path: Path,
+) -> None:
+    sink = ListEventSink()
+    outcome = StreamingFinishOutcome()
+
+    def chunks():
+        outcome.result_kind = "text_fallback"
+        yield "先给你一份通用建议。"
+
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "text-fallback.sqlite3",
+        model=_ScriptedModel([StreamingFinishAction(chunks(), outcome=outcome)]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=sink,
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", ())),
+        limits=AgentRuntimeLimits(),
+    )
+
+    result = runtime.start(
+        run_id="text-fallback",
+        query="给我建议",
+        authorized_scopes=set(),
+    )
+
+    assert result.status == "finished"
+    finished = next(event for event in sink.events if str(event.type) == "run.finished")
+    assert finished.payload["resultKind"] == "text_fallback"
+
+
 def test_native_langgraph_preserves_a_safe_server_tool_failure_code(
     tmp_path: Path,
 ) -> None:
@@ -415,6 +448,65 @@ def test_native_langgraph_preserves_a_safe_server_tool_failure_code(
 
     assert result.status == "error"
     assert result.error_code == "vision_analysis_failed"
+
+
+def test_native_langgraph_continues_after_optional_read_failure_without_fabricating_data(
+    tmp_path: Path,
+) -> None:
+    from beacon_agent_runtime.runtime import RuntimeFailure
+
+    class _FailingServerDispatcher:
+        def execute(self, *_arguments: object) -> object:
+            raise RuntimeFailure("private_provider_detail", "must not reach the model or event")
+
+    class _ReadFailureAwareModel:
+        def next_action(self, context: RunContext) -> object:
+            if not context.observations:
+                return ToolRequestAction(
+                    tool_call_id="optional-read-1",
+                    capability_id="training.context.read",
+                    arguments={},
+                    requested_scopes=("training.read",),
+                    idempotency_key=None,
+                )
+            assert context.observations[0].data == {
+                "unavailable": True,
+                "code": "training.context.unavailable",
+            }
+            return FinishAction("暂时无法读取训练上下文；以下只提供通用建议。")
+
+    manifest = _device_manifest().model_copy(
+        update={
+            "execution_location": "server",
+            "fallback": "training.context.unavailable",
+        }
+    )
+    sink = ListEventSink()
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "optional-read-degradation.sqlite3",
+        model=_ReadFailureAwareModel(),
+        dispatcher=_FailingServerDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=sink,
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (manifest,))),
+        limits=AgentRuntimeLimits(),
+    )
+
+    result = runtime.start(
+        run_id="optional-read-degradation",
+        query="给我训练建议",
+        authorized_scopes={"training.read"},
+    )
+
+    assert result.status == "finished"
+    failed_result = next(event for event in sink.events if str(event.type) == "tool.result")
+    assert failed_result.payload == {
+        "toolCallId": "optional-read-1",
+        "capabilityId": "training.context.read",
+        "status": "failed",
+        "failureCode": "training.context.unavailable",
+    }
+    assert "private_provider_detail" not in repr(sink.events)
 
 
 def test_native_langgraph_requires_and_accepts_device_context_replay_after_restart(
@@ -544,6 +636,41 @@ def test_native_langgraph_resumes_approval_once_with_command_resume(tmp_path: Pa
 
     assert first.status == "finished"
     assert second.error_code == "approval_not_pending"
+
+
+def test_native_langgraph_rejects_expired_approval_without_resuming(tmp_path: Path) -> None:
+    current = [datetime(2026, 9, 6, 12, 0, tzinfo=UTC)]
+    approval = ApprovalInterruptAction(
+        approval_id="approval-expiring",
+        tool_call_id="commit-expiring",
+        capability_id="training.context.read",
+        summary="确认继续",
+        requested_scopes=("training.read",),
+        idempotency_key="commit-expiring",
+    )
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "approval-expiry.sqlite3",
+        model=_ScriptedModel([approval, FinishAction("不应执行")]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (_device_manifest(),))),
+        limits=AgentRuntimeLimits(approval_ttl_seconds=120),
+        now=lambda: current[0],
+    )
+    assert runtime.start(
+        run_id="approval-expiry", query="确认操作", authorized_scopes={"training.read"}
+    ).status == "interrupted"
+
+    current[0] += timedelta(seconds=121)
+    expired = runtime.resume(
+        run_id="approval-expiry",
+        approval_id="approval-expiring",
+        approved=True,
+    )
+
+    assert expired.error_code == "approval_expired"
+    assert runtime.checkpoint_view("approval-expiry")["pendingApproval"] is True
 
 
 def test_native_langgraph_postgres_factory_uses_official_saver_and_closes_context(

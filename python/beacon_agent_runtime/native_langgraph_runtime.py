@@ -16,7 +16,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import sqlite3
-from typing import Any, Literal, TypedDict
+from typing import Any, Callable, Literal, TypedDict
 from uuid import uuid4
 
 from jsonschema import Draft202012Validator
@@ -29,7 +29,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
-from .capabilities import CapabilityManifest
+from .capabilities import CapabilityManifest, CapabilityRisk
 from .events import (
     AgentEventEmitter,
     ApprovalInterruptAction,
@@ -107,6 +107,7 @@ class NativeLangGraphAgentRuntime:
         event_sink: EventSink,
         registry: RegistryProvider,
         limits: AgentRuntimeLimits,
+        now: Callable[[], datetime] | None = None,
         sqlite_connection: sqlite3.Connection | None = None,
         postgres_context: Any | None = None,
     ) -> None:
@@ -119,6 +120,7 @@ class NativeLangGraphAgentRuntime:
         self.event_sink = event_sink
         self.registry = registry
         self.limits = limits
+        self._now = now or (lambda: datetime.now(UTC))
         self._private: dict[str, _PrivateRunContext] = {}
         # A graph node can emit an observable event and then raise before its
         # returned state reaches the checkpointer.  Retain only the next event
@@ -167,6 +169,7 @@ class NativeLangGraphAgentRuntime:
         event_sink: EventSink,
         registry: RegistryProvider,
         limits: AgentRuntimeLimits,
+        now: Callable[[], datetime] | None = None,
     ) -> "NativeLangGraphAgentRuntime":
         database = Path(path)
         database.parent.mkdir(parents=True, exist_ok=True)
@@ -180,6 +183,7 @@ class NativeLangGraphAgentRuntime:
             event_sink=event_sink,
             registry=registry,
             limits=limits,
+            now=now,
         )
 
     @classmethod
@@ -193,6 +197,7 @@ class NativeLangGraphAgentRuntime:
         event_sink: EventSink,
         registry: RegistryProvider,
         limits: AgentRuntimeLimits,
+        now: Callable[[], datetime] | None = None,
     ) -> "NativeLangGraphAgentRuntime":
         """Create a production graph with LangGraph's official Postgres saver.
 
@@ -218,6 +223,7 @@ class NativeLangGraphAgentRuntime:
                 event_sink=event_sink,
                 registry=registry,
                 limits=limits,
+                now=now,
             )
         except Exception:
             context.__exit__(None, None, None)
@@ -349,6 +355,8 @@ class NativeLangGraphAgentRuntime:
         pending = state.get("pending_approval", {})
         if pending.get("approvalId") != approval_id:
             return AgentRunResult(run_id, "error", error_code="approval_mismatch")
+        if _is_expired(pending.get("expiresAt"), now=self._now()):
+            return AgentRunResult(run_id, "error", error_code="approval_expired")
         return self._invoke(
             run_id,
             Command(resume={"approvalId": approval_id, "approved": approved}),
@@ -472,7 +480,11 @@ class NativeLangGraphAgentRuntime:
             updates.update(
                 {
                     "action_kind": "approval",
-                    "pending_approval": _safe_approval_reference(action),
+                    "pending_approval": _safe_approval_reference(
+                        action,
+                        expires_at=self._now()
+                        + timedelta(seconds=self.limits.approval_ttl_seconds),
+                    ),
                 }
             )
         elif isinstance(action, (FinishAction, StreamingFinishAction)):
@@ -513,13 +525,31 @@ class NativeLangGraphAgentRuntime:
         )
         try:
             observation = self.dispatcher.execute(action, manifest)
-        except RuntimeFailure:
+        except RuntimeFailure as failure:
             # Dispatchers may already have translated provider/network errors
             # into a safe, actionable code. Preserve it for the client instead
             # of flattening every operational failure into ``tool_failure``.
-            raise
+            if manifest.risk is not CapabilityRisk.READ_ONLY or not manifest.fallback:
+                raise
+            return self._degrade_read_only_tool(
+                state=state,
+                private=private,
+                action=action,
+                manifest=manifest,
+                next_sequence=next_sequence,
+                failure_code=manifest.fallback,
+            )
         except Exception as error:
-            raise RuntimeFailure("tool_failure", "Tool execution failed") from error
+            if manifest.risk is not CapabilityRisk.READ_ONLY or not manifest.fallback:
+                raise RuntimeFailure("tool_failure", "Tool execution failed") from error
+            return self._degrade_read_only_tool(
+                state=state,
+                private=private,
+                action=action,
+                manifest=manifest,
+                next_sequence=next_sequence,
+                failure_code=manifest.fallback,
+            )
         validated = self._validated_observation(action, manifest, observation.data)
         private.observations.append(validated)
         next_sequence = self._emit(
@@ -536,6 +566,56 @@ class NativeLangGraphAgentRuntime:
             {**state, "next_sequence": next_sequence},
             AgentEventType.TOOL_END,
             {"toolCallId": action.tool_call_id, "capabilityId": action.capability_id, "status": "completed"},
+        )
+        next_sequence = self._emit(
+            {**state, "next_sequence": next_sequence},
+            AgentEventType.STEP_FINISHED,
+            {"step": state["steps"]},
+        )
+        return {"next_sequence": next_sequence, "pending_tool": {}, "action_kind": ""}
+
+    def _degrade_read_only_tool(
+        self,
+        *,
+        state: _PersistentGraphState,
+        private: _PrivateRunContext,
+        action: ToolRequestAction,
+        manifest: CapabilityManifest,
+        next_sequence: int,
+        failure_code: str,
+    ) -> dict[str, Any]:
+        """Turn an optional read failure into a bounded, trusted observation.
+
+        The marker is runtime-owned and deliberately contains no dispatcher
+        message or fabricated domain fields.  It lets the planner continue
+        with an explicit evidence gap while the completed capability is
+        removed from subsequent selection.
+        """
+
+        failure_observation = ToolObservation(
+            action.tool_call_id,
+            action.capability_id,
+            {"unavailable": True, "code": failure_code},
+        )
+        private.observations.append(failure_observation)
+        next_sequence = self._emit(
+            {**state, "next_sequence": next_sequence},
+            AgentEventType.TOOL_RESULT,
+            {
+                "toolCallId": action.tool_call_id,
+                "capabilityId": action.capability_id,
+                "status": "failed",
+                "failureCode": failure_code,
+            },
+        )
+        next_sequence = self._emit(
+            {**state, "next_sequence": next_sequence},
+            AgentEventType.TOOL_END,
+            {
+                "toolCallId": action.tool_call_id,
+                "capabilityId": action.capability_id,
+                "status": "failed",
+            },
         )
         next_sequence = self._emit(
             {**state, "next_sequence": next_sequence},
@@ -627,6 +707,7 @@ class NativeLangGraphAgentRuntime:
                 "requestedScopes": pending["requestedScopes"],
                 "idempotencyKey": pending["idempotencyKey"],
                 "approvalRef": pending["approvalRef"],
+                "expiresAt": pending["expiresAt"],
                 "summary": action.summary if action is not None else "请在本机确认此操作。",
             },
         )
@@ -756,10 +837,11 @@ class NativeLangGraphAgentRuntime:
             AgentEventType.STEP_FINISHED,
             {"step": state["steps"]},
         )
+        result_kind = action.outcome.result_kind if isinstance(action, StreamingFinishAction) else "success"
         next_sequence = self._emit(
             {**state, "next_sequence": next_sequence},
             AgentEventType.RUN_FINISHED,
-            {"status": "completed", "resultKind": "success"},
+            {"status": "completed", "resultKind": result_kind},
         )
         if private is not None:
             private.results[state["run_id"]] = AgentRunResult(
@@ -924,7 +1006,11 @@ def _transient_device_tool_request(
     }
 
 
-def _safe_approval_reference(action: ApprovalInterruptAction) -> dict[str, Any]:
+def _safe_approval_reference(
+    action: ApprovalInterruptAction,
+    *,
+    expires_at: datetime,
+) -> dict[str, Any]:
     return {
         "approvalId": action.approval_id,
         "toolCallId": action.tool_call_id,
@@ -932,7 +1018,18 @@ def _safe_approval_reference(action: ApprovalInterruptAction) -> dict[str, Any]:
         "requestedScopes": tuple(action.requested_scopes),
         "idempotencyKey": action.idempotency_key,
         "approvalRef": _digest(f"{action.approval_id}:{action.tool_call_id}:{uuid4().hex}"),
+        "expiresAt": expires_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
     }
+
+
+def _is_expired(value: Any, *, now: datetime) -> bool:
+    if not isinstance(value, str) or not value.endswith("Z"):
+        return True
+    try:
+        expires_at = datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError:
+        return True
+    return now.astimezone(UTC) >= expires_at.astimezone(UTC)
 
 
 __all__ = ["NativeLangGraphAgentRuntime"]

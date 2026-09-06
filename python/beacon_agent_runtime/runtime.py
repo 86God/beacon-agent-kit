@@ -18,6 +18,7 @@ from .events import (
     FinishAction,
     RunContext,
     StreamingFinishAction,
+    StreamingFinishOutcome,
     ToolObservation,
     ToolRequestAction,
 )
@@ -64,6 +65,7 @@ class AgentRuntimeLimits:
     max_retries: int = 3
     max_observation_bytes: int = 65_536
     device_tool_ttl_seconds: int = 300
+    approval_ttl_seconds: int = 120
 
 
 @dataclass(frozen=True)
@@ -290,7 +292,12 @@ class AgentRuntime:
                 if isinstance(action, FinishAction):
                     return self._finish_text((action.text,), checkpoint, emitter)
                 if isinstance(action, StreamingFinishAction):
-                    return self._finish_text(action.chunks, checkpoint, emitter)
+                    return self._finish_text(
+                        action.chunks,
+                        checkpoint,
+                        emitter,
+                        outcome=action.outcome,
+                    )
                 raise RuntimeFailure("invalid_model_action", "Model returned an unsupported action")
         except RuntimeFailure as failure:
             emitter.emit(
@@ -305,6 +312,7 @@ class AgentRuntime:
         chunks: Any,
         checkpoint: RuntimeCheckpoint,
         emitter: AgentEventEmitter,
+        outcome: StreamingFinishOutcome | None = None,
     ) -> AgentRunResult:
         message_id = f"{checkpoint.run_id}:final"
         emitter.emit(AgentEventType.TEXT_START, {"messageId": message_id})
@@ -330,7 +338,11 @@ class AgentRuntime:
             {"messageId": message_id, "finalText": final_text},
         )
         emitter.emit(AgentEventType.STEP_FINISHED, {"step": checkpoint.steps})
-        emitter.emit(AgentEventType.RUN_FINISHED, {"status": "completed"})
+        result_kind = outcome.result_kind if outcome is not None else "success"
+        emitter.emit(
+            AgentEventType.RUN_FINISHED,
+            {"status": "completed", "resultKind": result_kind},
+        )
         self._save(checkpoint, emitter)
         return AgentRunResult(checkpoint.run_id, "finished", final_text=final_text)
 
