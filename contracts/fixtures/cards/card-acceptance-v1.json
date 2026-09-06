@@ -1,0 +1,210 @@
+{
+  "fixtureVersion": 1,
+  "cards": [
+    {
+      "kind": "food.review.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "canonical_card",
+      "expectedRendererId": "jianhao.food-review.native",
+      "expectedActions": ["food.review.edit", "food.review.confirm", "food.review.cancel"],
+      "validPayload": {
+        "recordType": "food",
+        "cardKind": "food.review.v1",
+        "mealName": "午餐",
+        "capturedAt": "2026-09-07T12:30:00+08:00",
+        "items": [{"id": "rice", "name": "米饭", "grams": 150, "calories": 174, "protein": 4, "carbs": 39, "fat": 0, "confidence": 88, "note": "按可食部估算"}],
+        "confidence": 88,
+        "reviewHint": "请核对份量。",
+        "reviewRequired": true,
+        "source": "ai_estimate",
+        "totalCalories": 174,
+        "protein": 4,
+        "carbs": 39,
+        "fat": 0
+      },
+      "invalidPayload": {"recordType": "food", "cardKind": "food.review.v1", "items": []},
+      "invalidReason": "missing_required_fields"
+    },
+    {
+      "kind": "exercise.review.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "canonical_card",
+      "expectedRendererId": "jianhao.exercise-review.native",
+      "expectedActions": ["exercise.review.update", "exercise.review.confirm", "exercise.review.cancel"],
+      "validPayload": {
+        "recordType": "exercise",
+        "cardKind": "exercise.review.v1",
+        "activityType": "跑步",
+        "capturedAt": "2026-09-07T07:30:00+08:00",
+        "durationMinutes": 30,
+        "distanceKilometers": 4.2,
+        "caloriesBurned": 280,
+        "metrics": {"pace": "7:08 /km"},
+        "confidence": 86,
+        "reviewHint": "请核对时长。",
+        "reviewRequired": true,
+        "notes": "户外跑",
+        "source": "ai_estimate"
+      },
+      "invalidPayload": {"recordType": "exercise", "cardKind": "exercise.review.v1", "durationMinutes": -1},
+      "invalidReason": "missing_activity_type_and_negative_duration"
+    },
+    {
+      "kind": "packaged_food.label_review.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "assistant_envelope",
+      "expectedRendererId": "jianhao.packaged-food-label.native",
+      "expectedActions": ["edit", "confirm", "delete"],
+      "validPayload": {"kind": "packaged_food.label_review", "payloadKind": "packagedFoodLabelReview", "productName": "无糖酸奶", "servingGrams": 100},
+      "invalidPayload": {"kind": "packaged_food.label_review", "payloadKind": "packagedFoodLabelReview", "servingGrams": -1},
+      "invalidReason": "missing_product_name_and_negative_serving"
+    },
+    {
+      "kind": "supplement.product_review.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "assistant_envelope",
+      "expectedRendererId": "jianhao.supplement-product.native",
+      "expectedActions": ["edit", "confirm", "delete"],
+      "validPayload": {"kind": "supplement.product_review", "payloadKind": "supplementProductReview", "productName": "乳清蛋白", "servingSize": 30},
+      "invalidPayload": {"kind": "supplement.product_review", "payloadKind": "supplementProductReview", "productName": ""},
+      "invalidReason": "empty_product_name"
+    },
+    {
+      "kind": "supplement.intake_review.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "assistant_envelope",
+      "expectedRendererId": "jianhao.supplement-intake.native",
+      "expectedActions": ["edit", "confirm", "delete"],
+      "validPayload": {"kind": "supplement.intake_review", "payloadKind": "supplementIntakeReview", "productName": "乳清蛋白", "servings": 1, "takenAt": "2026-09-07T20:00:00+08:00"},
+      "invalidPayload": {"kind": "supplement.intake_review", "payloadKind": "supplementIntakeReview", "servings": 0},
+      "invalidReason": "non_positive_servings"
+    },
+    {
+      "kind": "tool.status.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "assistant_envelope",
+      "expectedRendererId": "jianhao.tool-status.compact",
+      "expectedActions": [],
+      "validPayload": {"kind": "tool.status", "payloadKind": "toolStatus", "toolRunId": "tool-1", "status": "succeeded"},
+      "invalidPayload": {"kind": "tool.status", "payloadKind": "toolStatus", "toolRunId": "", "status": "unknown"},
+      "invalidReason": "invalid_tool_status"
+    },
+    {
+      "kind": "agent.task.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "assistant_envelope",
+      "expectedRendererId": "jianhao.agent-task.compact",
+      "expectedActions": [],
+      "validPayload": {"kind": "agent.task", "payloadKind": "agentTask", "runId": "run-1", "status": "completed"},
+      "invalidPayload": {"kind": "agent.task", "payloadKind": "agentTask", "runId": "", "status": "running"},
+      "invalidReason": "empty_run_id"
+    },
+    {
+      "kind": "training.session.draft.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.training-session.native",
+      "expectedActions": ["training.exercise.append", "training.exercise.replace", "training.exercise.remove", "training.exercise.adjust", "training.exercise.reorder", "training.plan.confirm", "training.plan.cancel"],
+      "validPayload": {"surfaceType": "training.session.draft.v1", "rootType": "Column", "title": "上肢训练草稿"},
+      "invalidPayload": {"surfaceType": "training.session.draft.v1", "rootType": "RemoteHTML"},
+      "invalidReason": "unsupported_component",
+      "media": {"url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg", "sourceName": "free-exercise-db", "sourceURL": "https://github.com/yuhonas/free-exercise-db", "licenseName": "Unlicense public domain"}
+    },
+    {
+      "kind": "training.week.draft.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": ["training.week.confirm", "surface.dismiss"],
+      "validPayload": {"surfaceType": "training.week.draft.v1", "rootType": "Column", "title": "本周训练草稿"},
+      "invalidPayload": {"surfaceType": "training.week.draft.v1", "rootType": "RemoteHTML"},
+      "invalidReason": "unsupported_component"
+    },
+    {
+      "kind": "profile.draft.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": ["profile.draft.confirm", "surface.dismiss"],
+      "validPayload": {"surfaceType": "profile.draft.v1", "rootType": "Column", "title": "身体档案修改草稿"},
+      "invalidPayload": {"surfaceType": "profile.draft.v1", "rootType": "RemoteHTML"},
+      "invalidReason": "unsupported_component"
+    },
+    {
+      "kind": "activity.review.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": ["activity.review.edit", "activity.review.confirm"],
+      "validPayload": {"surfaceType": "activity.review.v1", "rootType": "Column", "activityType": "划船机"},
+      "invalidPayload": {"surfaceType": "activity.review.v1", "rootType": "Column", "activityType": ""},
+      "invalidReason": "empty_activity_type"
+    },
+    {
+      "kind": "health.query.result.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": [],
+      "validPayload": {"surfaceType": "health.query.result.v1", "rootType": "Column", "summary": "最近 7 天已记录 3 次训练"},
+      "invalidPayload": {"surfaceType": "health.query.result.v1", "rootType": "RemoteHTML"},
+      "invalidReason": "unsupported_component"
+    },
+    {
+      "kind": "gym.equipment.review.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": ["gym.equipment.confirm", "gym.equipment.toggleExercise", "gym.equipment.createTrainingDraft"],
+      "validPayload": {"surfaceType": "gym.equipment.review.v1", "rootType": "Column", "equipment": ["史密斯机"]},
+      "invalidPayload": {"surfaceType": "gym.equipment.review.v1", "rootType": "RemoteHTML"},
+      "invalidReason": "unsupported_component"
+    },
+    {
+      "kind": "gym.equipment.catalog.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": ["gym.equipment.toggleExercise", "gym.equipment.createTrainingDraft"],
+      "validPayload": {"surfaceType": "gym.equipment.catalog.v1", "rootType": "Column", "equipment": ["哑铃", "绳索器械"]},
+      "invalidPayload": {"surfaceType": "gym.equipment.catalog.v1", "rootType": "RemoteHTML"},
+      "invalidReason": "unsupported_component"
+    },
+    {
+      "kind": "action.receipt.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": [],
+      "validPayload": {"surfaceType": "action.receipt.v1", "rootType": "Column", "receiptId": "receipt-1", "summary": "已保存到本机"},
+      "invalidPayload": {"surfaceType": "action.receipt.v1", "rootType": "Column", "receiptId": ""},
+      "invalidReason": "empty_receipt_id"
+    },
+    {
+      "kind": "error.recovery.v1",
+      "schemaVersion": 1,
+      "incompatibleSchemaVersion": 2,
+      "transport": "a2ui_surface",
+      "expectedRendererId": "jianhao.a2ui.host",
+      "expectedActions": ["agent.query.retry", "surface.dismiss"],
+      "validPayload": {"surfaceType": "error.recovery.v1", "rootType": "Column", "summary": "请重试，原有记录未改变"},
+      "invalidPayload": {"surfaceType": "error.recovery.v1", "rootType": "RemoteHTML"},
+      "invalidReason": "unsupported_component"
+    }
+  ]
+}
