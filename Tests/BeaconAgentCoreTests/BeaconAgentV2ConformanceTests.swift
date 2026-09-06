@@ -344,6 +344,10 @@ struct BeaconAgentV2ConformanceTests {
         let criticalEventSemantics = try #require(object["criticalEventSemantics"] as? [String: String])
         let segmentStates = try #require(object["segmentStates"] as? [String])
         let terminalStates = try #require(object["terminalStates"] as? [String])
+        let versionNegotiation = try #require(object["versionNegotiation"] as? [String: Any])
+        let supportedVersions = try #require(versionNegotiation["supportedEventSchemaVersions"] as? [Int])
+        let publicFailureFields = try #require(object["publicFailureFields"] as? [String])
+        let publicErrorCodes = try #require(object["publicErrorCodes"] as? [String])
 
         #expect(blankCodePoints.contains("001C-0020"))
         #expect(blankCodePoints.contains("2000-200B"))
@@ -360,6 +364,17 @@ struct BeaconAgentV2ConformanceTests {
         #expect(criticalEventSemantics["marker"] == "payload.critical=true")
         #expect(segmentStates.contains("device.waiting"))
         #expect(terminalStates.contains("permission.denied"))
+        #expect(supportedVersions == [2])
+        #expect(versionNegotiation["selection"] as? String == "highest_common_version")
+        #expect(versionNegotiation["minimumProtocolVersion"] as? Int == 1)
+        #expect(versionNegotiation["maximumProtocolVersion"] as? Int == Int(Int32.max))
+        #expect(publicFailureFields == ["code", "retryable", "diagnosticId", "requiredSchemaVersion"])
+        #expect(publicErrorCodes.contains("protocol.upgrade_required"))
+        #expect(publicErrorCodes.contains("protocol.replay_failed"))
+        #expect(publicErrorCodes.contains("protocol.mixed_run"))
+        #expect(publicErrorCodes.contains("protocol.mixed_turn"))
+        #expect(publicErrorCodes.contains("protocol.event_after_terminal"))
+        #expect(publicErrorCodes.contains("protocol.unsupported_patch"))
     }
 
     @Test

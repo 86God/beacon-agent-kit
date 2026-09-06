@@ -4,7 +4,16 @@ from enum import StrEnum
 from math import isfinite
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_serializer,
+)
+
+from .negotiation import ProtocolPublicError
 
 
 IDENTIFIER_MAX_CHARACTERS = 128
@@ -12,6 +21,18 @@ IDENTIFIER_MAX_UTF8_BYTES = 256
 EVENT_TYPE_MAX_CHARACTERS = 96
 EVENT_TYPE_MAX_UTF8_BYTES = 384
 PAYLOAD_MAX_BYTES = 262_144
+
+
+class AgentWireValidationError(ProtocolPublicError):
+    error_code = "protocol.invalid_event"
+
+
+class UnsupportedSchemaVersionError(AgentWireValidationError):
+    error_code = "protocol.unsupported_schema_version"
+
+    def __init__(self, version: int) -> None:
+        super().__init__("unsupported schema version")
+        self.required_schema_version = version
 
 
 def _is_wire_blank(value: str) -> bool:
@@ -160,3 +181,20 @@ class AgentEvent(BaseModel):
     @classmethod
     def validate_payload_size(cls, value: dict[str, Any]) -> dict[str, Any]:
         return validate_payload_wire_budget(value)
+
+
+def parse_agent_event(document: object) -> AgentEvent:
+    """Validate an untrusted wire document without leaking Pydantic failures."""
+    if not isinstance(document, dict):
+        raise AgentWireValidationError("event must be an object")
+
+    schema_version = document.get("schemaVersion")
+    if type(schema_version) is not int:
+        raise AgentWireValidationError("invalid schema version")
+    if schema_version != 2:
+        raise UnsupportedSchemaVersionError(schema_version)
+
+    try:
+        return AgentEvent.model_validate(document)
+    except ValidationError as error:
+        raise AgentWireValidationError("invalid event") from error

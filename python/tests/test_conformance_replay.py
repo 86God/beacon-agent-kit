@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from beacon_agent_runtime.protocol import AgentEvent
+from beacon_agent_runtime.negotiation import ProtocolPublicError
+from beacon_agent_runtime.protocol import AgentEvent, parse_agent_event
 from beacon_agent_runtime.reducer import AgentReplayError, AgentStateReducer, EventCollisionError
 
 
@@ -175,6 +176,68 @@ def test_unknown_critical_event_fails_without_changing_projection() -> None:
         )
 
     assert reducer.normalized_json() == before
+
+
+def test_replay_error_codes_match_public_contract() -> None:
+    cases = [
+        (
+            AgentStateReducer(),
+            [
+                AgentEvent(schemaVersion=2, eventId="run-a", runId="run-a", sequence=0, type="run.started", payload={}),
+                AgentEvent(schemaVersion=2, eventId="run-b", runId="run-b", sequence=1, type="step.started", payload={}),
+            ],
+            "protocol.mixed_run",
+        ),
+        (
+            AgentStateReducer(),
+            [
+                AgentEvent(schemaVersion=2, eventId="critical", runId="run-critical-code", sequence=0, type="future.required", payload={"critical": True}),
+            ],
+            "protocol.unsupported_critical_event",
+        ),
+        (
+            AgentStateReducer(),
+            [
+                AgentEvent(schemaVersion=2, eventId="bad-patch", runId="run-patch-code", sequence=0, type="state.delta", payload={"patch": [{"op": "move", "path": "/x"}]}),
+            ],
+            "protocol.unsupported_patch",
+        ),
+        (
+            AgentStateReducer(),
+            [
+                AgentEvent(schemaVersion=2, eventId="bad-payload", runId="run-invalid-code", sequence=0, type="text.delta", payload={"delta": "private"}),
+            ],
+            "protocol.invalid_event",
+        ),
+    ]
+
+    for reducer, events, expected_code in cases:
+        with pytest.raises(AgentReplayError) as caught:
+            for event in events:
+                reducer.ingest(event)
+        failure = caught.value.public_failure("diag-shared-error")
+        assert failure.code == expected_code
+        assert "private" not in failure.model_dump_json()
+
+
+def test_shared_wire_failures_match_stable_public_failures() -> None:
+    cases = json.loads(
+        (ROOT / "contracts" / "fixtures" / "public-failure-cases.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    for item in cases:
+        reducer = AgentStateReducer()
+        captured = None
+        try:
+            for document in item["events"]:
+                reducer.ingest(parse_agent_event(document))
+        except ProtocolPublicError as error:
+            captured = error.public_failure(item["expectedFailure"]["diagnosticId"])
+
+        assert captured is not None, item["name"]
+        assert captured.model_dump(by_alias=True) == item["expectedFailure"], item["name"]
 
 
 def test_mixed_turn_identity_fails_without_changing_projection() -> None:

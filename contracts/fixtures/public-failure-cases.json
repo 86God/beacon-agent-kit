@@ -1,0 +1,83 @@
+[
+  {
+    "name": "unsupported-schema",
+    "events": [
+      {
+        "schemaVersion": 3,
+        "eventId": "future-0",
+        "runId": "run-future",
+        "sequence": 0,
+        "type": "run.started",
+        "payload": {}
+      }
+    ],
+    "expectedFailure": {
+      "code": "protocol.unsupported_schema_version",
+      "retryable": false,
+      "diagnosticId": "diag-unsupported-schema",
+      "requiredSchemaVersion": 3
+    }
+  },
+  {
+    "name": "patch-missing-value",
+    "events": [
+      {
+        "schemaVersion": 2,
+        "eventId": "patch-missing-0",
+        "runId": "run-patch-missing",
+        "sequence": 0,
+        "type": "state.delta",
+        "payload": {"patch": [{"op": "add", "path": "/value"}]}
+      }
+    ],
+    "expectedFailure": {
+      "code": "protocol.unsupported_patch",
+      "retryable": false,
+      "diagnosticId": "diag-patch-missing"
+    }
+  },
+  {
+    "name": "patch-invalid-array-index",
+    "events": [
+      {
+        "schemaVersion": 2,
+        "eventId": "patch-index-0",
+        "runId": "run-patch-index",
+        "sequence": 0,
+        "type": "state.snapshot",
+        "payload": {"state": {"items": []}}
+      },
+      {
+        "schemaVersion": 2,
+        "eventId": "patch-index-1",
+        "runId": "run-patch-index",
+        "sequence": 1,
+        "type": "state.delta",
+        "payload": {"patch": [{"op": "replace", "path": "/items/nope", "value": 1}]}
+      }
+    ],
+    "expectedFailure": {
+      "code": "protocol.unsupported_patch",
+      "retryable": false,
+      "diagnosticId": "diag-patch-index"
+    }
+  },
+  {
+    "name": "patch-missing-traversal-key",
+    "events": [
+      {
+        "schemaVersion": 2,
+        "eventId": "patch-traversal-0",
+        "runId": "run-patch-traversal",
+        "sequence": 0,
+        "type": "state.delta",
+        "payload": {"patch": [{"op": "add", "path": "/missing/value", "value": 1}]}
+      }
+    ],
+    "expectedFailure": {
+      "code": "protocol.unsupported_patch",
+      "retryable": false,
+      "diagnosticId": "diag-patch-traversal"
+    }
+  }
+]

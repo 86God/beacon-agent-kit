@@ -1,0 +1,87 @@
+[
+  {
+    "name": "shared-v2",
+    "localSupported": [2],
+    "peerSupported": [2],
+    "diagnosticId": "diag-shared-v2",
+    "expected": {"kind": "compatible", "selectedVersion": 2}
+  },
+  {
+    "name": "highest-common",
+    "localSupported": [2, 3],
+    "peerSupported": [1, 2, 3],
+    "diagnosticId": "diag-highest-common",
+    "expected": {"kind": "compatible", "selectedVersion": 3}
+  },
+  {
+    "name": "client-upgrade-required",
+    "localSupported": [2],
+    "peerSupported": [3],
+    "diagnosticId": "diag-upgrade-required",
+    "expected": {
+      "kind": "upgrade_required",
+      "failure": {
+        "code": "protocol.upgrade_required",
+        "retryable": false,
+        "diagnosticId": "diag-upgrade-required",
+        "requiredSchemaVersion": 3
+      }
+    }
+  },
+  {
+    "name": "no-common-version",
+    "localSupported": [3],
+    "peerSupported": [2],
+    "diagnosticId": "diag-no-common",
+    "expected": {
+      "kind": "incompatible",
+      "failure": {
+        "code": "protocol.no_common_version",
+        "retryable": false,
+        "diagnosticId": "diag-no-common"
+      }
+    }
+  },
+  {
+    "name": "invalid-empty-offer",
+    "localSupported": [],
+    "peerSupported": [2],
+    "diagnosticId": "diag-invalid-offer",
+    "expected": {
+      "kind": "incompatible",
+      "failure": {
+        "code": "protocol.invalid_version_offer",
+        "retryable": false,
+        "diagnosticId": "diag-invalid-offer"
+      }
+    }
+  },
+  {
+    "name": "invalid-zero-version",
+    "localSupported": [0, 2],
+    "peerSupported": [2],
+    "diagnosticId": "diag-invalid-zero",
+    "expected": {
+      "kind": "incompatible",
+      "failure": {
+        "code": "protocol.invalid_version_offer",
+        "retryable": false,
+        "diagnosticId": "diag-invalid-zero"
+      }
+    }
+  },
+  {
+    "name": "invalid-oversized-version",
+    "localSupported": [2147483648],
+    "peerSupported": [2147483648],
+    "diagnosticId": "diag-invalid-oversized",
+    "expected": {
+      "kind": "incompatible",
+      "failure": {
+        "code": "protocol.invalid_version_offer",
+        "retryable": false,
+        "diagnosticId": "diag-invalid-oversized"
+      }
+    }
+  }
+]

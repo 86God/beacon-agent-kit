@@ -88,6 +88,36 @@
     "marker": "payload.critical=true",
     "unknownBehavior": "explicit_upgrade_required_or_protocol_error_before_projection"
   },
+  "versionNegotiation": {
+    "supportedEventSchemaVersions": [2],
+    "minimumProtocolVersion": 1,
+    "maximumProtocolVersion": 2147483647,
+    "selection": "highest_common_version",
+    "peerMinimumAboveLocalMaximum": "upgrade_required",
+    "otherNoCommonVersion": "incompatible",
+    "invalidOffer": "incompatible"
+  },
+  "publicFailureFields": [
+    "code",
+    "retryable",
+    "diagnosticId",
+    "requiredSchemaVersion"
+  ],
+  "publicErrorCodes": [
+    "protocol.upgrade_required",
+    "protocol.no_common_version",
+    "protocol.invalid_version_offer",
+    "protocol.unsupported_schema_version",
+    "protocol.event_collision",
+    "protocol.sequence_collision",
+    "protocol.replay_failed",
+    "protocol.mixed_run",
+    "protocol.mixed_turn",
+    "protocol.event_after_terminal",
+    "protocol.invalid_event",
+    "protocol.unsupported_critical_event",
+    "protocol.unsupported_patch"
+  ],
   "missingValueSemantics": {
     "missingPayloadKey": "unknown_or_not_provided",
     "explicitNull": "known_empty",

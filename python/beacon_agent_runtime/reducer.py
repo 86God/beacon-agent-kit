@@ -13,18 +13,49 @@ from .protocol import (
     validate_payload_wire_budget,
     validate_wire_identifier,
 )
+from .negotiation import ProtocolPublicError
 
 
-class AgentReplayError(ValueError):
+class AgentReplayError(ProtocolPublicError):
     """Base class for replay failures that must fail closed."""
+
+    error_code = "protocol.replay_failed"
 
 
 class EventCollisionError(AgentReplayError):
     """An event ID was reused with different content."""
 
+    error_code = "protocol.event_collision"
+
 
 class SequenceCollisionError(AgentReplayError):
     """A sequence number was reused by a different event."""
+
+    error_code = "protocol.sequence_collision"
+
+
+class MixedRunError(AgentReplayError):
+    error_code = "protocol.mixed_run"
+
+
+class MixedTurnError(AgentReplayError):
+    error_code = "protocol.mixed_turn"
+
+
+class EventAfterTerminalError(AgentReplayError):
+    error_code = "protocol.event_after_terminal"
+
+
+class UnsupportedCriticalEventError(AgentReplayError):
+    error_code = "protocol.unsupported_critical_event"
+
+
+class UnsupportedPatchError(AgentReplayError):
+    error_code = "protocol.unsupported_patch"
+
+
+class InvalidEventError(AgentReplayError):
+    error_code = "protocol.invalid_event"
 
 
 def _event_document(event: AgentEvent) -> dict[str, Any]:
@@ -37,7 +68,7 @@ def _canonical(value: object) -> str:
 
 def _pointer_parts(path: str) -> list[str]:
     if not path.startswith("/"):
-        raise AgentReplayError(f"invalid JSON pointer: {path}")
+        raise UnsupportedPatchError(f"invalid JSON pointer: {path}")
     return [part.replace("~1", "/").replace("~0", "~") for part in path[1:].split("/")]
 
 
@@ -47,7 +78,9 @@ def _apply_patch(document: Any, operations: list[dict[str, Any]]) -> Any:
         op = operation.get("op")
         path = operation.get("path")
         if op not in {"add", "replace", "remove"} or not isinstance(path, str):
-            raise AgentReplayError("unsupported JSON patch operation")
+            raise UnsupportedPatchError("unsupported JSON patch operation")
+        if op in {"add", "replace"} and "value" not in operation:
+            raise UnsupportedPatchError("patch value is required")
         parts = _pointer_parts(path)
         if not parts:
             if op == "remove":
@@ -56,32 +89,45 @@ def _apply_patch(document: Any, operations: list[dict[str, Any]]) -> Any:
                 result = deepcopy(operation.get("value"))
             continue
         parent = result
-        for part in parts[:-1]:
-            if isinstance(parent, list):
-                parent = parent[int(part)]
-            elif isinstance(parent, dict):
-                parent = parent[part]
-            else:
-                raise AgentReplayError("JSON patch traversed a scalar")
+        try:
+            for part in parts[:-1]:
+                if isinstance(parent, list):
+                    index = int(part)
+                    if index not in range(len(parent)):
+                        raise UnsupportedPatchError("JSON patch index is out of bounds")
+                    parent = parent[index]
+                elif isinstance(parent, dict):
+                    if part not in parent:
+                        raise UnsupportedPatchError("JSON patch key does not exist")
+                    parent = parent[part]
+                else:
+                    raise UnsupportedPatchError("JSON patch traversed a scalar")
+        except (ValueError, IndexError, KeyError) as error:
+            raise UnsupportedPatchError("invalid JSON patch traversal") from error
         leaf = parts[-1]
         if isinstance(parent, list):
             if op == "add" and leaf == "-":
-                parent.append(deepcopy(operation.get("value")))
+                parent.append(deepcopy(operation["value"]))
             else:
-                index = int(leaf)
+                try:
+                    index = int(leaf)
+                except ValueError as error:
+                    raise UnsupportedPatchError("invalid JSON patch index") from error
+                if index not in range(len(parent)):
+                    raise UnsupportedPatchError("JSON patch index is out of bounds")
                 if op == "remove":
                     parent.pop(index)
                 elif op == "add":
-                    parent.insert(index, deepcopy(operation.get("value")))
+                    parent.insert(index, deepcopy(operation["value"]))
                 else:
-                    parent[index] = deepcopy(operation.get("value"))
+                    parent[index] = deepcopy(operation["value"])
         elif isinstance(parent, dict):
             if op == "remove":
                 parent.pop(leaf, None)
             else:
-                parent[leaf] = deepcopy(operation.get("value"))
+                parent[leaf] = deepcopy(operation["value"])
         else:
-            raise AgentReplayError("JSON patch targeted a scalar")
+            raise UnsupportedPatchError("JSON patch targeted a scalar")
     return result
 
 
@@ -113,7 +159,10 @@ class AgentStateReducer:
 
     def ingest(self, event: AgentEvent) -> None:
         event = AgentEvent.model_validate(event.model_dump(by_alias=True, mode="json"))
-        validate_payload_wire_budget(event.payload)
+        try:
+            validate_payload_wire_budget(event.payload)
+        except ValueError as error:
+            raise InvalidEventError(str(error)) from error
         previous_next_sequence = self.next_sequence
         candidate = deepcopy(self)
         try:
@@ -137,15 +186,15 @@ class AgentStateReducer:
                 raise EventCollisionError(f"event ID collision: {event.event_id}")
             return
         if self.run_id is not None and event.run_id != self.run_id:
-            raise AgentReplayError("one reducer cannot mix run IDs")
+            raise MixedRunError("one reducer cannot mix run IDs")
         if (
             self.turn_id is not None
             and event.turn_id is not None
             and event.turn_id != self.turn_id
         ):
-            raise AgentReplayError("one reducer cannot mix turn IDs")
+            raise MixedTurnError("one reducer cannot mix turn IDs")
         if self._terminal_sequence is not None:
-            raise AgentReplayError(
+            raise EventAfterTerminalError(
                 f"event after terminal sequence: {event.sequence}"
             )
         buffered = self._buffer.get(event.sequence)
@@ -180,7 +229,7 @@ class AgentStateReducer:
         if self.run_id is not None:
             run_ids.add(self.run_id)
         if len(run_ids) > 1:
-            raise AgentReplayError("one reducer cannot mix run IDs")
+            raise MixedRunError("one reducer cannot mix run IDs")
 
         turn_ids = {
             event.turn_id
@@ -190,7 +239,7 @@ class AgentStateReducer:
         if self.turn_id is not None:
             turn_ids.add(self.turn_id)
         if len(turn_ids) > 1:
-            raise AgentReplayError("one reducer cannot mix turn IDs")
+            raise MixedTurnError("one reducer cannot mix turn IDs")
 
     def normalized(self) -> dict[str, Any]:
         projection = {
@@ -242,7 +291,7 @@ class AgentStateReducer:
             if "resultKind" in payload:
                 result_kind = _required_string(payload, "resultKind")
                 if result_kind not in {"success", "empty", "text_fallback"}:
-                    raise AgentReplayError("invalid resultKind")
+                    raise InvalidEventError("invalid resultKind")
                 self.result_kind = result_kind
             self.status = "finished"
             self._terminal_sequence = event.sequence
@@ -319,14 +368,16 @@ class AgentStateReducer:
             self.receipts.append(payload)
         elif event_type not in {str(item) for item in AgentEventType}:
             if payload.get("critical") is True:
-                raise AgentReplayError(f"unsupported critical event: {event_type}")
+                raise UnsupportedCriticalEventError(
+                    f"unsupported critical event: {event_type}"
+                )
             self.custom_events.append(_event_document(event))
 
 
 def _required_string(payload: dict[str, Any], key: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or not value:
-        raise AgentReplayError(f"missing {key}")
+        raise InvalidEventError(f"missing {key}")
     return value
 
 
@@ -339,17 +390,17 @@ def _diagnostic_fields(payload: dict[str, Any], required: bool) -> dict[str, Any
     diagnostic_id = _required_string(payload, "diagnosticId")
     retryable = payload.get("retryable")
     if not isinstance(retryable, bool):
-        raise AgentReplayError("missing retryable")
+        raise InvalidEventError("missing retryable")
     try:
         validate_wire_identifier(code)
         validate_wire_identifier(diagnostic_id)
     except ValueError as error:
-        raise AgentReplayError(str(error)) from error
+        raise InvalidEventError(str(error)) from error
     return {"code": code, "retryable": retryable, "diagnosticId": diagnostic_id}
 
 
 def _required_patch(payload: dict[str, Any]) -> list[dict[str, Any]]:
     value = payload.get("patch")
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
-        raise AgentReplayError("missing patch operations")
+        raise InvalidEventError("missing patch operations")
     return value

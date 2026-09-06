@@ -214,3 +214,21 @@ def test_shared_mobile_contract_publishes_wire_bounds() -> None:
     assert contract["criticalEventSemantics"]["marker"] == "payload.critical=true"
     assert "device.waiting" in contract["segmentStates"]
     assert "permission.denied" in contract["terminalStates"]
+    assert contract["versionNegotiation"]["supportedEventSchemaVersions"] == [2]
+    assert contract["versionNegotiation"]["selection"] == "highest_common_version"
+    assert contract["versionNegotiation"]["minimumProtocolVersion"] == 1
+    assert contract["versionNegotiation"]["maximumProtocolVersion"] == 2_147_483_647
+    assert contract["publicFailureFields"] == [
+        "code",
+        "retryable",
+        "diagnosticId",
+        "requiredSchemaVersion",
+    ]
+    assert "protocol.upgrade_required" in contract["publicErrorCodes"]
+    assert "protocol.replay_failed" in contract["publicErrorCodes"]
+    assert {
+        "protocol.mixed_run",
+        "protocol.mixed_turn",
+        "protocol.event_after_terminal",
+        "protocol.unsupported_patch",
+    }.issubset(contract["publicErrorCodes"])
