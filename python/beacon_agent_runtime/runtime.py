@@ -74,6 +74,7 @@ class AgentRunResult:
     status: str
     final_text: str | None = None
     error_code: str | None = None
+    replayed: bool = False
 
 
 class RuntimeFailure(RuntimeError):

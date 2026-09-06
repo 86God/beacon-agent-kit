@@ -71,6 +71,7 @@ class _PersistentGraphState(TypedDict, total=False):
     pending_approval: dict[str, Any]
     approved_tool_call_ids: tuple[str, ...]
     completed_idempotency_keys: tuple[str, ...]
+    completed_device_results: dict[str, str]
     error_code: str | None
 
 
@@ -269,6 +270,7 @@ class NativeLangGraphAgentRuntime:
             "pending_approval": {},
             "approved_tool_call_ids": tuple(sorted(preapproved_tool_calls or ())),
             "completed_idempotency_keys": (),
+            "completed_device_results": {},
             "error_code": None,
         }
         next_sequence = self._emit(initial_state, AgentEventType.RUN_STARTED, {"registryRevision": effective.revision})
@@ -285,6 +287,17 @@ class NativeLangGraphAgentRuntime:
         state = self._state(run_id)
         if state is None:
             return AgentRunResult(run_id, "error", error_code="checkpoint_missing")
+        observation_digest = _observation_digest(observation)
+        completed = state.get("completed_device_results", {})
+        if tool_call_id in completed:
+            if completed[tool_call_id] != observation_digest:
+                return AgentRunResult(
+                    run_id,
+                    "error",
+                    error_code="device_tool_result_conflict",
+                    replayed=True,
+                )
+            return self._replayed_result(run_id, state)
         if state.get("phase") == "cancelled":
             return AgentRunResult(run_id, "error", error_code="run_cancelled")
         if state.get("phase") != "waiting_device":
@@ -297,6 +310,8 @@ class NativeLangGraphAgentRuntime:
             return AgentRunResult(run_id, "error", error_code="private_context_replay_required")
         if state.get("pending_tool", {}).get("toolCallId") != tool_call_id:
             return AgentRunResult(run_id, "error", error_code="device_tool_mismatch")
+        if _is_expired(state.get("pending_tool", {}).get("expiresAt"), now=self._now()):
+            return AgentRunResult(run_id, "error", error_code="device_tool_expired")
         try:
             manifest = self._manifest(action.capability_id, self.registry.current())
             validated = self._validated_observation(action, manifest, observation)
@@ -308,6 +323,22 @@ class NativeLangGraphAgentRuntime:
             run_id,
             Command(resume={"toolCallId": tool_call_id, "receipt": receipt}),
         )
+
+    @staticmethod
+    def _replayed_result(run_id: str, state: _PersistentGraphState) -> AgentRunResult:
+        phase = str(state.get("phase", ""))
+        if phase == "finished":
+            return AgentRunResult(run_id, "finished", replayed=True)
+        if phase == "cancelled":
+            return AgentRunResult(run_id, "cancelled", replayed=True)
+        if phase == "failed":
+            return AgentRunResult(
+                run_id,
+                "error",
+                error_code=state.get("error_code") or "runtime_failure",
+                replayed=True,
+            )
+        return AgentRunResult(run_id, "interrupted", replayed=True)
 
     def rehydrate_device_context(
         self,
@@ -470,7 +501,13 @@ class NativeLangGraphAgentRuntime:
                     "action_kind": "device_tool"
                     if manifest.execution_location == "device"
                     else "server_tool",
-                    "pending_tool": _safe_tool_reference(action, manifest, effective.revision),
+                    "pending_tool": _safe_tool_reference(
+                        action,
+                        manifest,
+                        effective.revision,
+                        expires_at=self._now()
+                        + timedelta(seconds=self.limits.device_tool_ttl_seconds),
+                    ),
                 }
             )
         elif isinstance(action, ApprovalInterruptAction):
@@ -686,11 +723,14 @@ class NativeLangGraphAgentRuntime:
         idempotency_key = pending.get("idempotencyKey")
         if idempotency_key:
             completed_keys.add(str(idempotency_key))
+        completed_results = dict(state.get("completed_device_results", {}))
+        completed_results[str(pending["toolCallId"])] = _observation_digest(observation.data)
         return {
             "next_sequence": next_sequence,
             "phase": "running",
             "pending_tool": {},
             "completed_idempotency_keys": tuple(sorted(completed_keys)),
+            "completed_device_results": completed_results,
         }
 
     def _approval_request_node(self, state: _PersistentGraphState) -> dict[str, Any]:
@@ -950,6 +990,8 @@ def _safe_tool_reference(
     action: ToolRequestAction,
     manifest: CapabilityManifest,
     registry_revision: str,
+    *,
+    expires_at: datetime,
 ) -> dict[str, Any]:
     return {
         "toolCallId": action.tool_call_id,
@@ -960,6 +1002,7 @@ def _safe_tool_reference(
         "idempotencyKey": action.idempotency_key,
         "argumentsDigest": _arguments_digest(action.arguments),
         "requestRef": _digest(f"{action.tool_call_id}:{action.capability_id}:{uuid4().hex}"),
+        "expiresAt": expires_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
     }
 
 
@@ -1000,9 +1043,7 @@ def _transient_device_tool_request(
         # This request is deliberately live-stream-only, but the device still
         # needs an explicit short expiry before it may execute a local action.
         # Omitting it makes otherwise-valid requests fail closed on the client.
-        "expiresAt": (
-            datetime.now(UTC) + timedelta(minutes=2)
-        ).isoformat().replace("+00:00", "Z"),
+        "expiresAt": reference["expiresAt"],
     }
 
 
@@ -1030,6 +1071,17 @@ def _is_expired(value: Any, *, now: datetime) -> bool:
     except ValueError:
         return True
     return now.astimezone(UTC) >= expires_at.astimezone(UTC)
+
+
+def _observation_digest(observation: dict[str, Any]) -> str:
+    return _digest(
+        json.dumps(
+            observation,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
 
 
 __all__ = ["NativeLangGraphAgentRuntime"]

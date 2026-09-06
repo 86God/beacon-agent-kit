@@ -567,7 +567,7 @@ def test_native_langgraph_requires_and_accepts_device_context_replay_after_resta
     assert "Alice" not in _database_text(database)
 
 
-def test_native_langgraph_rejects_duplicate_device_resume_after_the_same_interrupt(
+def test_native_langgraph_replays_identical_device_resume_after_the_same_interrupt(
     tmp_path: Path,
 ) -> None:
     runtime = NativeLangGraphAgentRuntime.sqlite(
@@ -606,7 +606,52 @@ def test_native_langgraph_rejects_duplicate_device_resume_after_the_same_interru
     )
 
     assert first.status == "finished"
-    assert second.error_code == "device_tool_not_pending"
+    assert second.status == "finished"
+    assert second.replayed is True
+
+
+def test_native_langgraph_rejects_conflicting_device_result_after_completion(
+    tmp_path: Path,
+) -> None:
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=tmp_path / "conflicting-device-resume.sqlite3",
+        model=_ScriptedModel(
+            [
+                ToolRequestAction(
+                    tool_call_id="one-read",
+                    capability_id="training.context.read",
+                    arguments={},
+                    requested_scopes=("training.read",),
+                    idempotency_key=None,
+                ),
+                FinishAction("已完成。"),
+            ]
+        ),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", (_device_manifest(),))),
+        limits=AgentRuntimeLimits(),
+    )
+    assert runtime.start(
+        run_id="conflicting-device-resume",
+        query="查询训练",
+        authorized_scopes={"training.read"},
+    ).status == "interrupted"
+    assert runtime.resume_device_tool(
+        run_id="conflicting-device-resume",
+        tool_call_id="one-read",
+        observation={"displayName": "A", "weightKg": 66, "meal": "粥"},
+    ).status == "finished"
+
+    conflict = runtime.resume_device_tool(
+        run_id="conflicting-device-resume",
+        tool_call_id="one-read",
+        observation={"displayName": "B", "weightKg": 66, "meal": "粥"},
+    )
+
+    assert conflict.error_code == "device_tool_result_conflict"
+    assert conflict.replayed is True
 
 
 def test_native_langgraph_resumes_approval_once_with_command_resume(tmp_path: Path) -> None:
