@@ -169,6 +169,180 @@ struct BeaconAgentV2ConformanceTests {
         #expect(try state.normalizedJSON().contains("\"status\":\"idle\""))
     }
 
+    @Test
+    func wireFieldsRejectBlankAndOversizedUTF8BeforeProjectionChanges() throws {
+        var state = BeaconAgentStateV2()
+        let oversizedEmojiIdentifier = String(repeating: "🧭", count: 65)
+        let invalidEvents = [
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: " ",
+                runId: "run-bounds",
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            ),
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: oversizedEmojiIdentifier,
+                runId: "run-bounds",
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            ),
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "event-0",
+                runId: "\n",
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            ),
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "\u{200B}",
+                runId: "run-bounds",
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            ),
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "\u{001C}",
+                runId: "run-bounds",
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            ),
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "event-0",
+                runId: "run-bounds",
+                sequence: 0,
+                type: " ",
+                payload: [:]
+            )
+        ]
+
+        for event in invalidEvents {
+            #expect(throws: BeaconAgentReplayError.self) {
+                try state.ingest(event)
+            }
+            #expect(state.nextSequence == 0)
+            #expect(try state.normalizedJSON().contains("\"status\":\"idle\""))
+        }
+    }
+
+    @Test
+    func wireFieldsAcceptMultibyteIdentifierAtUTF8Boundary() throws {
+        let boundaryIdentifier = String(repeating: "🧭", count: 64)
+        var state = BeaconAgentStateV2()
+
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: boundaryIdentifier,
+                runId: boundaryIdentifier,
+                sequence: 0,
+                type: "run.started",
+                payload: [:]
+            )
+        )
+
+        #expect(state.nextSequence == 1)
+        #expect(state.status == "running")
+    }
+
+    @Test
+    func oversizedPayloadFailsBeforeProjectionChanges() throws {
+        var state = BeaconAgentStateV2()
+        let event = BeaconAgentEventV2(
+            schemaVersion: 2,
+            eventId: "event-large",
+            runId: "run-large",
+            sequence: 0,
+            type: "text.delta",
+            payload: [
+                "messageId": .string("message-large"),
+                "delta": .string(String(repeating: "x", count: 262_144))
+            ]
+        )
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(event)
+        }
+        #expect(state.nextSequence == 0)
+        #expect(try state.normalizedJSON().contains("\"text\":{}"))
+    }
+
+    @Test
+    func payloadAtExactUTF8BoundaryIsAccepted() throws {
+        var state = BeaconAgentStateV2()
+        let exactBoundaryPayload = String(repeating: "x", count: 262_132)
+
+        try state.ingest(
+            BeaconAgentEventV2(
+                schemaVersion: 2,
+                eventId: "event-boundary",
+                runId: "run-boundary",
+                sequence: 0,
+                type: "run.started",
+                payload: ["delta": .string(exactBoundaryPayload)]
+            )
+        )
+
+        #expect(state.nextSequence == 1)
+        #expect(state.status == "running")
+    }
+
+    @Test
+    func numericHeavyPayloadUsesSharedStructuralBudget() throws {
+        var state = BeaconAgentStateV2()
+        let event = BeaconAgentEventV2(
+            schemaVersion: 2,
+            eventId: "event-numeric-heavy",
+            runId: "run-numeric-heavy",
+            sequence: 0,
+            type: "run.started",
+            payload: [
+                "values": .array(Array(repeating: .number(1), count: 70_000))
+            ]
+        )
+
+        #expect(throws: BeaconAgentReplayError.self) {
+            try state.ingest(event)
+        }
+        #expect(state.nextSequence == 0)
+    }
+
+    @Test
+    func sharedMobileContractPublishesWireBounds() throws {
+        let contractURL = fixtureDirectory
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("contracts/mobile-agent-contract.json")
+        #expect(FileManager.default.fileExists(atPath: contractURL.path))
+        guard FileManager.default.fileExists(atPath: contractURL.path) else { return }
+        let object = try #require(
+            JSONSerialization.jsonObject(with: Data(contentsOf: contractURL)) as? [String: Any]
+        )
+        let wireLimits = try #require(object["wireLimits"] as? [String: Int])
+
+        #expect(wireLimits["identifierMaxCharacters"] == 128)
+        #expect(wireLimits["identifierMaxUTF8Bytes"] == 256)
+        #expect(wireLimits["eventTypeMaxCharacters"] == 96)
+        #expect(wireLimits["eventTypeMaxUTF8Bytes"] == 384)
+        #expect(wireLimits["payloadMaxBytes"] == 262_144)
+        let characterCounting = try #require(object["characterCounting"] as? [String: Any])
+        let blankCodePoints = try #require(characterCounting["blankCodePoints"] as? [String])
+        let payloadSizing = try #require(object["payloadSizing"] as? [String: Any])
+
+        #expect(blankCodePoints.contains("001C-0020"))
+        #expect(blankCodePoints.contains("2000-200B"))
+        #expect(payloadSizing["algorithm"] as? String == "decoded-json-structural-budget-v1")
+        #expect(payloadSizing["numberBytes"] as? Int == 32)
+    }
+
     private var fixtureDirectory: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

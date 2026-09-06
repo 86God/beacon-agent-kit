@@ -6,6 +6,10 @@ public enum BeaconAgentReplayError: Error, Equatable, Sendable {
     case sequenceCollision(Int)
     case mixedRunIds
     case eventAfterTerminal(Int)
+    case blankField(String)
+    case fieldCharacterLimit(field: String, actual: Int, maximum: Int)
+    case fieldUTF8ByteLimit(field: String, actual: Int, maximum: Int)
+    case payloadByteLimit(actual: Int, maximum: Int)
     case malformedPayload(String)
     case unsupportedPatch
 }
@@ -35,6 +39,7 @@ public struct BeaconAgentStateV2: Sendable {
         guard event.schemaVersion == 2 else {
             throw BeaconAgentReplayError.unsupportedSchemaVersion(event.schemaVersion)
         }
+        try event.validateWireBounds()
         let fingerprint = try canonicalData(event)
         if let previous = seen[event.eventId] {
             guard previous == fingerprint else {

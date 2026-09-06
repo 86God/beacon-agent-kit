@@ -7,7 +7,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
-from .protocol import AgentEvent, AgentEventType
+from .protocol import AgentEvent, AgentEventType, validate_payload_wire_budget
 
 
 class AgentReplayError(ValueError):
@@ -101,6 +101,8 @@ class AgentStateReducer:
     _terminal_sequence: int | None = field(default=None, repr=False)
 
     def ingest(self, event: AgentEvent) -> None:
+        event = AgentEvent.model_validate(event.model_dump(by_alias=True, mode="json"))
+        validate_payload_wire_budget(event.payload)
         document = _event_document(event)
         fingerprint = _canonical(document)
         previous = self._seen.get(event.event_id)

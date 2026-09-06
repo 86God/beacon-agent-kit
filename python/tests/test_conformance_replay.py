@@ -32,6 +32,53 @@ def replay(events: list[AgentEvent]) -> AgentStateReducer:
     return reducer
 
 
+def test_mutated_payload_is_revalidated_before_projection() -> None:
+    event = AgentEvent(
+        schemaVersion=2,
+        eventId="event-mutated",
+        runId="run-mutated",
+        sequence=0,
+        type="text.delta",
+        payload={"messageId": "message-mutated", "delta": "ok"},
+    )
+    event.payload["delta"] = "x" * 262_144
+    reducer = AgentStateReducer()
+
+    with pytest.raises(ValueError, match="payload_byte_limit_exceeded"):
+        reducer.ingest(event)
+
+    assert reducer.normalized()["nextSequence"] == 0
+    assert reducer.normalized()["text"] == {}
+
+
+def test_buffered_event_uses_validated_snapshot_not_mutable_caller_payload() -> None:
+    delayed = AgentEvent(
+        schemaVersion=2,
+        eventId="event-delayed",
+        runId="run-buffered-copy",
+        sequence=1,
+        type="text.delta",
+        payload={"messageId": "message-buffered", "delta": "ok"},
+    )
+    reducer = AgentStateReducer()
+    reducer.ingest(delayed)
+    delayed.payload["delta"] = "changed-after-buffering"
+
+    reducer.ingest(
+        AgentEvent(
+            schemaVersion=2,
+            eventId="event-start",
+            runId="run-buffered-copy",
+            sequence=0,
+            type="run.started",
+            payload={},
+        )
+    )
+
+    assert reducer.normalized()["nextSequence"] == 2
+    assert reducer.normalized()["text"]["message-buffered"] == "ok"
+
+
 @pytest.mark.parametrize(
     "fixture_name",
     [

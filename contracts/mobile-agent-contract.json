@@ -1,0 +1,67 @@
+{
+  "contractVersion": 1,
+  "protocol": {
+    "schemaVersion": 2,
+    "initialCursor": -1,
+    "firstSequence": 0,
+    "segmentEndCompletesTurn": false
+  },
+  "wireLimits": {
+    "identifierMaxCharacters": 128,
+    "identifierMaxUTF8Bytes": 256,
+    "eventTypeMaxCharacters": 96,
+    "eventTypeMaxUTF8Bytes": 384,
+    "payloadMaxBytes": 262144
+  },
+  "characterCounting": {
+    "characters": "Unicode code points",
+    "bytes": "UTF-8",
+    "blankCodePoints": [
+      "0009-000D",
+      "001C-0020",
+      "0085",
+      "00A0",
+      "1680",
+      "2000-200B",
+      "2028-2029",
+      "202F",
+      "205F",
+      "3000",
+      "FEFF"
+    ]
+  },
+  "payloadSizing": {
+    "algorithm": "decoded-json-structural-budget-v1",
+    "scope": "decoded_payload_budget_not_transport_frame_size",
+    "string": "2_plus_raw_utf8_bytes",
+    "objectKey": "3_plus_raw_utf8_bytes",
+    "numberBytes": 32,
+    "trueBytes": 4,
+    "falseBytes": 5,
+    "nullBytes": 4,
+    "containerBytes": 2,
+    "separatorBytes": 1
+  },
+  "requiredEnvelopeFields": [
+    "schemaVersion",
+    "eventId",
+    "runId",
+    "sequence",
+    "type",
+    "payload"
+  ],
+  "missingValueSemantics": {
+    "missingPayloadKey": "unknown_or_not_provided",
+    "explicitNull": "known_empty",
+    "blankRequiredString": "invalid"
+  },
+  "segmentStates": [
+    "run.interrupted",
+    "approval.requested"
+  ],
+  "terminalStates": [
+    "run.finished",
+    "run.error"
+  ],
+  "unsupportedSchemaBehavior": "upgradeRequired_or_explicit_error_before_projection"
+}
