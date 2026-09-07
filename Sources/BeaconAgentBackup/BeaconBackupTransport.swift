@@ -61,6 +61,16 @@ public protocol BeaconBackupTransport: Sendable {
     func abandonUpload(backupID: String) async throws
     func download(backupID: String) async throws -> Data
     func list(profileID: String) async throws -> [BeaconRemoteBackupMetadata]
+    func listAll() async throws -> [BeaconRemoteBackupMetadata]
     func delete(backupID: String) async throws
     func cleanupIncomplete(olderThan: Date) async throws
+}
+
+public extension BeaconBackupTransport {
+    /// Cross-device discovery is optional for transports that cannot enumerate
+    /// an account-private namespace. Callers must handle the stable failure and
+    /// keep manual encrypted-file recovery available.
+    func listAll() async throws -> [BeaconRemoteBackupMetadata] {
+        throw BeaconBackupTransportFailure.invalidRemoteState
+    }
 }
