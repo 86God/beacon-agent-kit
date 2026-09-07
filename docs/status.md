@@ -48,3 +48,15 @@ Task 22 completed:
 - No push, tag, package publication, service deployment, or Release was performed.
 
 Current state: BeaconAgentKit v0.2 implementation plan complete; awaiting explicit approval for any external publication.
+
+## 2026-09-08 independent mobile consumer
+
+- Added `Examples/LocalNotesAssistant` as a separate Swift package depending on
+  BeaconAgentKit by package product, not on JianHao sources.
+- Its deterministic integration test covers read, draft, approval, local commit,
+  receipt, authorized memory, restart before confirmation, and terminal restore.
+- The example's 2 tests pass, its library builds for iPhone 17 / iOS 26.5
+  Simulator, and the framework remains green at 20 XCTest + 92 Swift Testing
+  tests.
+- The canonical source remains this upstream repository. No SemVer tag or public
+  SDK release was created by this integration-only work.

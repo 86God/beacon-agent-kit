@@ -5,6 +5,9 @@ BeaconAgentKit separates reusable Agent mechanics from app-specific domain logic
 ## Targets
 
 - `BeaconAgentCore`: Foundation-only event, run, thread, tool run, card envelope, timeline reducer, policy, JSON payload, and redaction primitives.
+- `BeaconAgentPersistence`: compare-and-save run journal plus identifier-only durable resume outbox.
+- `BeaconAgentMemory`: profile-scoped, revision-checked consent memory and recall policy.
+- `BeaconAgentBackup`: authenticated archive, manifest, crypto, and remote transport contracts.
 - `BeaconAgentSwiftUI`: generic SwiftUI timeline, card stack, and tool run views.
 - `BeaconAgentAGUI`: AG-UI-inspired event decoding and adapter entry points.
 - `BeaconAgentA2UI`: validated incremental surface state, patches, and action envelopes.
