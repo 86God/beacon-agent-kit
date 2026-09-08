@@ -8,7 +8,7 @@ version = "0.2.0a1"
 description = "Protocol-first reference runtime for BeaconAgentKit."
 requires-python = ">=3.12"
 dependencies = [
-    "cryptography>=43,<46",
+    "cryptography>=50,<51",
     "fastapi>=0.115,<1",
     "httpx>=0.27,<1",
     "jsonschema>=4.23,<5",
