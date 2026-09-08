@@ -88,6 +88,24 @@ class _PrivateRunContext:
     results: dict[str, AgentRunResult] = field(default_factory=dict)
 
 
+@dataclass
+class _PreparedPostgresCheckpointer:
+    """One host-owned Postgres saver shared by its per-run graphs."""
+
+    checkpointer: Any
+    context: Any
+    closed: bool = False
+
+    def close(self) -> None:
+        if self.closed:
+            return
+        self.closed = True
+        self.context.__exit__(None, None, None)
+
+    def __exit__(self, *_arguments: object) -> None:
+        self.close()
+
+
 class NativeLangGraphAgentRuntime:
     """LangGraph-native planner with privacy-safe device interrupts.
 
@@ -192,6 +210,7 @@ class NativeLangGraphAgentRuntime:
         cls,
         *,
         connection_string: str,
+        prepared: _PreparedPostgresCheckpointer | None = None,
         model: ModelProvider,
         dispatcher: ToolDispatcher,
         policy: PolicyEngine,
@@ -207,28 +226,40 @@ class NativeLangGraphAgentRuntime:
         official LangGraph tables on the first deployment.
         """
 
+        owned = prepared is None
+        prepared = prepared or cls.prepare_postgresql(connection_string)
+        return cls(
+            checkpointer=prepared.checkpointer,
+            postgres_context=prepared if owned else None,
+            model=model,
+            dispatcher=dispatcher,
+            policy=policy,
+            event_sink=event_sink,
+            registry=registry,
+            limits=limits,
+            now=now,
+        )
+
+    @classmethod
+    def prepare_postgresql(
+        cls,
+        connection_string: str,
+    ) -> _PreparedPostgresCheckpointer:
+        """Open and migrate one saver before the host accepts mobile runs."""
+
         if PostgresSaver is None:
-            raise RuntimeError(
-                "langgraph_checkpoint_postgres_unavailable"
-            )
+            raise RuntimeError("langgraph_checkpoint_postgres_unavailable")
         context = PostgresSaver.from_conn_string(connection_string)
         checkpointer = context.__enter__()
         try:
             checkpointer.setup()
-            return cls(
-                checkpointer=checkpointer,
-                postgres_context=context,
-                model=model,
-                dispatcher=dispatcher,
-                policy=policy,
-                event_sink=event_sink,
-                registry=registry,
-                limits=limits,
-                now=now,
-            )
         except Exception:
             context.__exit__(None, None, None)
             raise
+        return _PreparedPostgresCheckpointer(
+            checkpointer=checkpointer,
+            context=context,
+        )
 
     def close(self) -> None:
         if self._sqlite_connection is not None:

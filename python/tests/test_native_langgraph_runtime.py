@@ -758,3 +758,56 @@ def test_native_langgraph_postgres_factory_uses_official_saver_and_closes_contex
     assert calls == ["postgresql://agent:secret@db/jianhao_agent", "enter", "setup"]
     runtime.close()
     assert calls[-1] == "exit"
+
+
+def test_native_langgraph_reuses_one_prepared_postgres_checkpointer(
+    monkeypatch,
+) -> None:
+    calls: list[object] = []
+
+    class _Saver(native_runtime_module.SqliteSaver):
+        def __init__(self) -> None:
+            super().__init__(sqlite3.connect(":memory:", check_same_thread=False))
+
+        def setup(self) -> None:
+            calls.append("setup")
+
+    class _ConnectionContext:
+        def __enter__(self) -> _Saver:
+            calls.append("enter")
+            return _Saver()
+
+        def __exit__(self, *_arguments: object) -> None:
+            calls.append("exit")
+
+    class _PostgresSaver:
+        @staticmethod
+        def from_conn_string(connection_string: str) -> _ConnectionContext:
+            calls.append(connection_string)
+            return _ConnectionContext()
+
+    monkeypatch.setattr(native_runtime_module, "PostgresSaver", _PostgresSaver)
+    prepared = NativeLangGraphAgentRuntime.prepare_postgresql(
+        "postgresql://agent:secret@db/jianhao_agent"
+    )
+
+    runtimes = [
+        NativeLangGraphAgentRuntime.postgresql(
+            connection_string="postgresql://agent:secret@db/jianhao_agent",
+            prepared=prepared,
+            model=_ScriptedModel([FinishAction("done")]),
+            dispatcher=_NoopDispatcher(),
+            policy=DefaultPolicyEngine(),
+            event_sink=ListEventSink(),
+            registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", ())),
+            limits=AgentRuntimeLimits(),
+        )
+        for _ in range(2)
+    ]
+
+    assert calls == ["postgresql://agent:secret@db/jianhao_agent", "enter", "setup"]
+    for runtime in runtimes:
+        runtime.close()
+    assert calls[-1] == "setup"
+    prepared.close()
+    assert calls[-1] == "exit"
