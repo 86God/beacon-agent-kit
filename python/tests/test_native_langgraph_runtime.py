@@ -86,6 +86,32 @@ def _database_text(path: Path) -> str:
         )
 
 
+def test_sqlite_runtime_prepares_checkpoint_schema_before_first_invoke(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "prepared-before-first-invoke.sqlite3"
+    runtime = NativeLangGraphAgentRuntime.sqlite(
+        path=database,
+        model=_ScriptedModel([FinishAction("unused")]),
+        dispatcher=_NoopDispatcher(),
+        policy=DefaultPolicyEngine(),
+        event_sink=ListEventSink(),
+        registry=StaticRegistryProvider(EffectiveRegistry("registry-v1", ())),
+        limits=AgentRuntimeLimits(),
+    )
+
+    with sqlite3.connect(database) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
+
+    runtime.close()
+    assert {"checkpoints", "writes"} <= tables
+
+
 def test_native_langgraph_device_interrupt_resumes_without_persisting_private_observation(
     tmp_path: Path,
 ) -> None:

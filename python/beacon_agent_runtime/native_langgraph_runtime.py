@@ -193,8 +193,20 @@ class NativeLangGraphAgentRuntime:
         database = Path(path)
         database.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(database, check_same_thread=False)
+        checkpointer = SqliteSaver(connection)
+        # SqliteSaver otherwise initializes its schema lazily on the first
+        # graph invocation.  When several fresh runs arrive together, separate
+        # connections can race on PRAGMA journal_mode/CREATE TABLE and surface
+        # an avoidable ``database is locked`` graph failure.  The host
+        # serializes construction of SQLite runtimes, so complete that one-time
+        # setup while still inside the serialized section.
+        try:
+            checkpointer.setup()
+        except Exception:
+            connection.close()
+            raise
         return cls(
-            checkpointer=SqliteSaver(connection),
+            checkpointer=checkpointer,
             sqlite_connection=connection,
             model=model,
             dispatcher=dispatcher,
